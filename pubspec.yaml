@@ -1,0 +1,31 @@
+name: boersenrennen_app
+description: "Börsenrennen – ein Lernspiel, das drei Anlagestrategien als Wettrennen zeigt."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.13.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  # App-Zustand (Einstellungen, Bestenliste) – bewusst schlicht gehalten.
+  provider: ^6.1.5
+  # Lokale Bestenliste als ein JSON-String.
+  shared_preferences: ^2.5.2
+  # Deutsche Zahl- und Währungsformate.
+  intl: ^0.20.2
+  # Verhindert, dass der Bildschirm während einer laufenden Runde abdunkelt.
+  wakelock_plus: ^1.2.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/kurse/
