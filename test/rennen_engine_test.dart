@@ -158,14 +158,14 @@ void main() {
       expect(e.spieler.stueck, closeTo(cashVorher / (25.0 * 1.005), 1e-9));
     });
 
-    test('investiert: Einzahlung kauft sofort Stücke (mit Slippage)', () {
+    test('investiert: Einzahlung kauft sofort Stücke (ohne Slippage)', () {
       final reihe = baueReihe(
         start: DateTime.utc(2010, 1, 15),
         kalenderTage: 100,
         kursFuer: (_) => 20.0,
       );
       final e = RennenEngine(reihe, const SpielKonfiguration(zinssatz: 0.0));
-      e.kaufen(); // sofort investieren
+      e.kaufen(); // sofort investieren – dieser eine Kauf zahlt Slippage
       final stueckNachKauf = e.spieler.stueck;
 
       while (!e.fertig) {
@@ -174,9 +174,10 @@ void main() {
 
       expect(e.spieler.cash, 0);
       expect(e.spieler.stueck, greaterThan(stueckNachKauf));
+      // Der Sparplan selbst ist slippage-frei – nur der manuelle Kauf oben war es.
       expect(
         e.spieler.stueck,
-        closeTo(stueckNachKauf + e.einzahlungen * 100.0 / (20.0 * 1.005), 1e-9),
+        closeTo(stueckNachKauf + e.einzahlungen * 100.0 / 20.0, 1e-9),
       );
     });
   });
@@ -196,7 +197,8 @@ void main() {
       expect(e.spieler.cash, closeTo(1000.0 * 0.995 / 1.005, 1e-9));
     });
 
-    test('Buy-and-Hold-Spieler bleibt unter dem Investor', () {
+    test('Buy-and-Hold-Spieler liegt nur noch um die Slippage auf das Startkapital zurück',
+        () {
       final reihe = baueReihe(
         start: start,
         kalenderTage: 365 * 5,
@@ -209,8 +211,38 @@ void main() {
       }
 
       expect(e.wertSpieler, lessThan(e.wertInvestor));
-      // Der Rückstand ist genau die Slippage auf jeden investierten Euro.
-      expect(e.wertSpieler / e.wertInvestor, closeTo(1 / 1.005, 1e-9));
+      // Spieler hält 1000/(kurs0·1,005) + Σ(100/kursₘ) Stück, Investor
+      // 1000/kurs0 + Σ(100/kursₘ) – die Sparplan-Terme sind seit V1 auf
+      // beiden Seiten identisch (slippage-frei) und kürzen sich exakt heraus.
+      // Übrig bleibt nur die Slippage auf den initialen Kauf des Startkapitals.
+      expect(
+        e.investor.stueck - e.spieler.stueck,
+        closeTo(1000.0 * (1 - 1 / 1.005) / reihe.kurs(0), 1e-9),
+      );
+    });
+
+    test(
+        'Spieler ohne Anfangskauf, der nur den Sparplan mitläuft, landet exakt '
+        'beim Investor', () {
+      final reihe = baueReihe(
+        start: start,
+        kalenderTage: 365 * 5,
+        kursFuer: (t) => 80 + 60 * t,
+      );
+      final e = RennenEngine(reihe, const SpielKonfiguration(zinssatz: 0.0));
+
+      // Künstlich in denselben Startzustand wie der Investor versetzen, ohne
+      // kaufen() zu rufen: investiert=true allein würde nur zukünftige
+      // Einzahlungen betreffen, nicht das bereits gehaltene Anfangscash.
+      e.spieler.investiert = true;
+      e.spieler.stueck = e.cfg.startCash / e.kurs;
+      e.spieler.cash = 0;
+
+      while (!e.fertig) {
+        e.schritt();
+      }
+
+      expect(e.wertSpieler, closeTo(e.wertInvestor, 1e-9));
     });
   });
 
@@ -414,6 +446,329 @@ void main() {
       final e = RennenEngine(reihe, const SpielKonfiguration(zinssatz: 0.0), vorlauf: vorlauf);
 
       expect(e.renditeMonat, isNull);
+    });
+  });
+
+  group('Abgeltungsteuer', () {
+    test('ohne steuernAktiv verhält sich Kaufen/Verkaufen exakt wie zuvor', () {
+      final reihe = baueReihe(start: start, kalenderTage: 365 * 3, kursFuer: (t) => 40 + 60 * t);
+
+      RennenEngine baueUndHandle(SpielKonfiguration cfg) {
+        final e = RennenEngine(reihe, cfg);
+        e.kaufen();
+        for (var i = 0; i < 100; i++) {
+          e.schritt();
+        }
+        e.verkaufen();
+        while (!e.fertig) {
+          e.schritt();
+        }
+        return e;
+      }
+
+      final ohne = baueUndHandle(const SpielKonfiguration(zinssatz: 3.0));
+      final mitParamsAberAus = baueUndHandle(const SpielKonfiguration(
+        zinssatz: 3.0,
+        steuersatz: 0.26375,
+        teilfreistellung: 0.30,
+        sparerpauschbetrag: 1000,
+        steuernAktiv: false,
+      ));
+
+      expect(mitParamsAberAus.wertSpieler, ohne.wertSpieler);
+      expect(mitParamsAberAus.wertInvestor, ohne.wertInvestor);
+      expect(mitParamsAberAus.wertSicherheit, ohne.wertSicherheit);
+      expect(mitParamsAberAus.gezahlteSteuerSpieler, 0);
+      expect(mitParamsAberAus.gezahlteSteuerSicherheit, 0);
+    });
+
+    test('Verkauf mit Gewinn unterhalb des Freibetrags kostet keine Steuer', () {
+      // Ein dritter Tag als Puffer: sonst würde schritt() die Runde schon
+      // beenden, bevor verkaufen() überhaupt aufgerufen wird.
+      final reihe = Kursreihe.ausListen(
+        [0, 1, 2].map((d) => Kursreihe.zuEpochTag(start.add(Duration(days: d)))).toList(),
+        [100.0, 110.0, 110.0],
+      );
+      final e = RennenEngine(reihe, const SpielKonfiguration(zinssatz: 0.0, steuernAktiv: true));
+      e.kaufen();
+      e.schritt();
+      e.verkaufen();
+
+      final stueck = 1000.0 / (100.0 * 1.005);
+      final erloesOhneSteuer = stueck * 110.0 * 0.995;
+
+      expect(e.gezahlteSteuerSpieler, 0);
+      expect(e.spieler.cash, closeTo(erloesOhneSteuer, 1e-6));
+    });
+
+    test('Verkauf mit Gewinn über dem Freibetrag kostet exakt (gewinn-rest)*Steuersatz', () {
+      final reihe = Kursreihe.ausListen(
+        [0, 1, 2].map((d) => Kursreihe.zuEpochTag(start.add(Duration(days: d)))).toList(),
+        [100.0, 300.0, 300.0],
+      );
+      const cfg = SpielKonfiguration(zinssatz: 0.0, steuernAktiv: true);
+      final e = RennenEngine(reihe, cfg);
+      e.kaufen();
+      e.schritt();
+      e.verkaufen();
+
+      final stueck = 1000.0 / (100.0 * 1.005);
+      final erloes = stueck * 300.0 * 0.995;
+      final gewinn = erloes - 1000.0;
+      final erwarteteSteuer = (gewinn - cfg.sparerpauschbetrag) * cfg.steuersatz;
+
+      expect(e.gezahlteSteuerSpieler, closeTo(erwarteteSteuer, 1e-6));
+      expect(e.spieler.cash, closeTo(erloes - erwarteteSteuer, 1e-6));
+    });
+
+    test('Teilfreistellung 0.30 senkt die Steuer exakt um 30%', () {
+      // sparerpauschbetrag:0 nimmt den Freibetrag aus der Gleichung heraus,
+      // damit ausschließlich der Teilfreistellungs-Faktor gemessen wird.
+      final reihe = Kursreihe.ausListen(
+        [0, 1, 2].map((d) => Kursreihe.zuEpochTag(start.add(Duration(days: d)))).toList(),
+        [100.0, 300.0, 300.0],
+      );
+
+      double steuerFuer(double teilfreistellung) {
+        final e = RennenEngine(
+          reihe,
+          SpielKonfiguration(
+              zinssatz: 0.0, steuernAktiv: true, teilfreistellung: teilfreistellung, sparerpauschbetrag: 0),
+        );
+        e.kaufen();
+        e.schritt();
+        e.verkaufen();
+        return e.gezahlteSteuerSpieler;
+      }
+
+      final ohneTeilfreistellung = steuerFuer(0.0);
+      final mitTeilfreistellung = steuerFuer(0.30);
+      expect(mitTeilfreistellung, closeTo(ohneTeilfreistellung * 0.7, 1e-9));
+    });
+
+    test('Verlust und anschließender Gewinn verrechnen sich korrekt im Verlusttopf', () {
+      const cfg = SpielKonfiguration(zinssatz: 0.0, steuernAktiv: true, sparerpauschbetrag: 0);
+
+      RennenEngine baueMitVerlustDannGewinn(double kursNachGewinn) {
+        // Ein vierter Tag als Puffer: sonst würde schritt() die Runde schon
+        // beenden, bevor der zweite verkaufen()-Aufruf greift.
+        final reihe = Kursreihe.ausListen(
+          [0, 1, 2, 3].map((d) => Kursreihe.zuEpochTag(start.add(Duration(days: d)))).toList(),
+          [100.0, 50.0, kursNachGewinn, kursNachGewinn],
+        );
+        final e = RennenEngine(reihe, cfg);
+        e.kaufen(); // Tag 0, Kurs 100
+        e.schritt(); // -> Tag 1, Kurs 50
+        e.verkaufen(); // Verlust
+        e.kaufen(); // sofort wieder investieren
+        e.schritt(); // -> Tag 2
+        e.verkaufen(); // Gewinn
+        return e;
+      }
+
+      // Gewinn kleiner als der Verlust -> vollständig verrechnet, keine Steuer.
+      final kleinerGewinn = baueMitVerlustDannGewinn(55.0);
+      expect(kleinerGewinn.gezahlteSteuerSpieler, 0);
+
+      // Gewinn größer als der Verlust -> nur der Überschuss wird versteuert.
+      final grosserGewinn = baueMitVerlustDannGewinn(150.0);
+      final cashNachVerlust = (1000.0 / (100.0 * 1.005)) * 50.0 * 0.995;
+      final verlust1 = 1000.0 - cashNachVerlust;
+      final stueck2 = cashNachVerlust / (50.0 * 1.005);
+      final erloes2 = stueck2 * 150.0 * 0.995;
+      final gewinn2 = erloes2 - cashNachVerlust;
+      final erwarteteSteuer = (gewinn2 - verlust1) * cfg.steuersatz;
+      expect(grosserGewinn.gezahlteSteuerSpieler, closeTo(erwarteteSteuer, 1e-6));
+    });
+
+    test('Der Sparerpauschbetrag setzt sich zum Jahreswechsel zurück', () {
+      final reihe = Kursreihe.ausListen(
+        [
+          DateTime.utc(2020, 12, 20),
+          DateTime.utc(2020, 12, 25),
+          DateTime.utc(2021, 1, 5),
+          DateTime.utc(2021, 1, 10),
+          DateTime.utc(2021, 1, 11),
+        ].map(Kursreihe.zuEpochTag).toList(),
+        // Zweiter Kursanstieg bewusst schwächer (100->150 statt 100->200):
+        // der Einstand ist nach dem ersten steuerfreien Verkauf schon höher
+        // (~1980 € statt 1000 €), derselbe prozentuale Anstieg ergäbe sonst
+        // einen deutlich größeren absoluten Gewinn als beim ersten Verkauf.
+        [100.0, 200.0, 100.0, 150.0, 150.0],
+      );
+      // monatsEinzahlung:0, damit die Sparplan-Einzahlung beim Monatswechsel
+      // (Dez->Jan fällt hier mit dem Jahreswechsel zusammen) nicht zusätzlich
+      // Cash einbringt und die Gewinnrechnung verkompliziert.
+      final e = RennenEngine(
+          reihe, const SpielKonfiguration(zinssatz: 0.0, monatsEinzahlung: 0.0, steuernAktiv: true));
+
+      e.kaufen(); // Tag 0, 2020
+      e.schritt(); // -> Tag 1, 2020
+      e.verkaufen(); // Gewinn knapp unter dem Freibetrag
+      expect(e.gezahlteSteuerSpieler, 0);
+
+      e.schritt(); // -> Tag 2, bereits 2021 -> Freibetrag-Reset
+      e.kaufen();
+      e.schritt(); // -> Tag 3, 2021
+      e.verkaufen(); // erneuter Gewinn knapp unter dem (zurückgesetzten)
+      // Freibetrag – ohne Reset wäre er schon fast aufgebraucht.
+      expect(e.gezahlteSteuerSpieler, 0);
+    });
+
+    test('latente Investor-Steuer bleibt bei wiederholtem Lesen gleich und '
+        'mutiert wertInvestor nicht', () {
+      final reihe = baueReihe(start: start, kalenderTage: 365 * 5, kursFuer: (t) => 50 + 100 * t);
+      final e = laufeDurch(
+        reihe,
+        const SpielKonfiguration(zinssatz: 0.0, steuernAktiv: true, teilfreistellung: 0.30),
+      );
+
+      final wertVorher = e.wertInvestor;
+      final steuer1 = e.latenteSteuerInvestor;
+      final steuer2 = e.latenteSteuerInvestor;
+      expect(steuer1, steuer2);
+      expect(e.wertInvestor, wertVorher);
+
+      final eingezahlt = e.cfg.startCash + e.cfg.monatsEinzahlung * e.einzahlungen;
+      final buchgewinn = e.wertInvestor - eingezahlt;
+      final erwartet = math.max(0.0, buchgewinn * (1 - e.cfg.teilfreistellung) - e.cfg.sparerpauschbetrag) *
+          e.cfg.steuersatz;
+      expect(steuer1, closeTo(erwartet, 1e-6));
+    });
+
+    test('Sicherheit versteuert Zinsen zum Jahreswechsel mit Freibetrag, ohne Teilfreistellung',
+        () {
+      const cfg = SpielKonfiguration(
+        startCash: 100000,
+        monatsEinzahlung: 0.0,
+        zinssatz: 50.0,
+        steuernAktiv: true,
+        teilfreistellung: 0.30,
+        sparerpauschbetrag: 1000,
+      );
+      final reihe = baueReihe(
+        start: DateTime.utc(2020, 12, 1),
+        kalenderTage: 35,
+        kursFuer: (_) => 100.0,
+        nurWerktage: false,
+      );
+      final e = RennenEngine(reihe, cfg);
+      while (Kursreihe.zuDatum(e.reihe.epochTag(e.i)).year < 2021) {
+        e.schritt();
+      }
+
+      final zins2020 = 100000 * (math.pow(1.5, 30 / 365) - 1);
+      final erwarteteSteuer2020 = math.max(0.0, zins2020 - cfg.sparerpauschbetrag) * cfg.steuersatz;
+      // Ohne Teilfreistellung: cfg.teilfreistellung (0.30) darf hier nicht wirken.
+      expect(e.gezahlteSteuerSicherheit, closeTo(erwarteteSteuer2020, 1e-3));
+    });
+
+    test('eine über beendeRunde() vorzeitig beendete Runde rechnet das laufende '
+        'Sicherheit-Teiljahr trotzdem ab', () {
+      const cfg = SpielKonfiguration(
+          startCash: 100000, monatsEinzahlung: 0.0, zinssatz: 20.0, steuernAktiv: true);
+      final reihe = baueReihe(
+        start: DateTime.utc(2021, 1, 1),
+        kalenderTage: 100,
+        kursFuer: (_) => 100.0,
+        nurWerktage: false,
+      );
+      final e = RennenEngine(reihe, cfg);
+      for (var i = 0; i < 50; i++) {
+        e.schritt();
+      }
+
+      expect(e.fertig, isFalse);
+      expect(e.gezahlteSteuerSicherheit, 0); // Jahr noch nicht gewechselt
+
+      e.beendeRunde();
+
+      expect(e.fertig, isTrue);
+      expect(e.gezahlteSteuerSicherheit, greaterThan(0));
+    });
+  });
+
+  group('Würfel-Investor', () {
+    test('fester Seed ergibt eine deterministische Trade-Folge', () {
+      final reihe = baueReihe(start: start, kalenderTage: 365 * 20, kursFuer: (t) => 50 + 60 * t);
+
+      RennenEngine baueUndLaufe(int seed) {
+        final e = RennenEngine(reihe, const SpielKonfiguration(zinssatz: 0.0),
+            wuerfelAktiv: true, wuerfelSeed: seed);
+        while (!e.fertig) {
+          e.schritt();
+        }
+        return e;
+      }
+
+      final a = baueUndLaufe(42);
+      final b = baueUndLaufe(42);
+      final c = baueUndLaufe(43);
+
+      expect(a.wuerfel.investiert, b.wuerfel.investiert);
+      expect(a.wertWuerfel, closeTo(b.wertWuerfel!, 1e-9));
+      // Kontrolle, dass der Seed tatsächlich etwas bewirkt (sonst wäre der
+      // Vergleich mit gleichem Seed bedeutungslos).
+      expect(a.wertWuerfel != c.wertWuerfel || a.wuerfel.investiert != c.wuerfel.investiert, isTrue);
+    });
+
+    test('der Würfel-Investor zahlt Slippage bei jedem Umschalten', () {
+      final reihe = baueReihe(start: start, kalenderTage: 365 * 20, kursFuer: (t) => 50 + 40 * t);
+      final e = RennenEngine(reihe, const SpielKonfiguration(zinssatz: 0.0),
+          wuerfelAktiv: true, wuerfelSeed: 7);
+
+      var vorherInvestiert = e.wuerfel.investiert;
+      var vorherCash = e.wuerfel.cash;
+      var vorherStueck = e.wuerfel.stueck;
+      var mindestensEinUmschalten = false;
+
+      while (!e.fertig) {
+        e.schritt();
+        if (e.wuerfel.investiert != vorherInvestiert) {
+          mindestensEinUmschalten = true;
+          if (vorherInvestiert) {
+            // War investiert und hat gerade verkauft. Die Einzahlung dieses
+            // Schritts hat – da noch investiert – zuerst Stücke gekauft.
+            final stueckBeimSchalten = vorherStueck + e.cfg.monatsEinzahlung / e.kurs;
+            final ausf = e.kurs * (1 - e.cfg.slippage);
+            expect(e.wuerfel.cash, closeTo(stueckBeimSchalten * ausf, 1e-6));
+            expect(e.wuerfel.stueck, 0);
+          } else {
+            // War in Cash und hat gerade gekauft. Die Einzahlung dieses
+            // Schritts ist – da noch nicht investiert – zuerst Cash geworden.
+            final betragBeimSchalten = vorherCash + e.cfg.monatsEinzahlung;
+            final ausf = e.kurs * (1 + e.cfg.slippage);
+            expect(e.wuerfel.stueck, closeTo(betragBeimSchalten / ausf, 1e-6));
+            expect(e.wuerfel.cash, 0);
+          }
+        }
+        vorherInvestiert = e.wuerfel.investiert;
+        vorherCash = e.wuerfel.cash;
+        vorherStueck = e.wuerfel.stueck;
+      }
+
+      expect(mindestensEinUmschalten, isTrue);
+    });
+
+    test('deaktivierter Schalter: der Würfel-Investor existiert nicht, die Engine '
+        'verhält sich exakt wie zuvor', () {
+      final reihe = baueReihe(
+        start: start,
+        kalenderTage: 365 * 3,
+        kursFuer: (t) => 100 + 100 * t, // 100 -> 200
+      );
+
+      final ohneParam = laufeDurch(reihe, const SpielKonfiguration(zinssatz: 5.0));
+      final mitExplizitAus = laufeDurch(
+        reihe,
+        const SpielKonfiguration(zinssatz: 5.0),
+      );
+
+      expect(ohneParam.wertWuerfel, isNull);
+      expect(mitExplizitAus.wertWuerfel, isNull);
+      expect(mitExplizitAus.wertSpieler, ohneParam.wertSpieler);
+      expect(mitExplizitAus.wertInvestor, ohneParam.wertInvestor);
+      expect(mitExplizitAus.wertSicherheit, ohneParam.wertSicherheit);
     });
   });
 

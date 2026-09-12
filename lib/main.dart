@@ -5,7 +5,9 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'data/bestenliste.dart';
+import 'data/erfolge_repository.dart';
 import 'data/kursdaten_repository.dart';
+import 'data/spielverlauf.dart';
 import 'screens/start_screen.dart';
 import 'theme/arcade_theme.dart';
 
@@ -28,6 +30,8 @@ class BoersenrennenApp extends StatelessWidget {
       providers: [
         Provider(create: (_) => KursdatenRepository()),
         ChangeNotifierProvider(create: (_) => BestenlisteRepository(prefs)),
+        ChangeNotifierProvider(create: (_) => SpielverlaufRepository(prefs)),
+        ChangeNotifierProvider(create: (_) => ErfolgeRepository(prefs)),
       ],
       child: MaterialApp(
         title: 'Börsenrennen',

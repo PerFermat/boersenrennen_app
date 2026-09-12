@@ -52,7 +52,7 @@ class _RennenScreenState extends State<RennenScreen>
     // Painter einmalig bauen – nicht in build().
     _chartPainter = KursChartPainter(widget.engine,
         vorlauf: widget.vorlauf,
-        investiertVerlauf: _controller.investiertVerlauf,
+        investiertVerlauf: widget.engine.investiertProTag,
         repaint: _controller.repaint);
     _bahnPainter = RennstreckePainter(_controller, repaint: _controller.repaint);
 
@@ -307,6 +307,17 @@ class _RennenScreenState extends State<RennenScreen>
                     textFarbe: ArcadeFarben.sicherheitDunkel,
                   ),
                 ),
+                if (hud.wertWuerfel != null) ...[
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: DepotKarte(
+                      titel: 'WÜRFEL',
+                      wert: hud.wertWuerfel!,
+                      farbe: ArcadeFarben.wuerfel,
+                      textFarbe: ArcadeFarben.wuerfelDunkel,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

@@ -10,6 +10,7 @@ import '../domain/spiel_konfiguration.dart';
 import '../theme/arcade_theme.dart';
 import '../ui/candy_button.dart';
 import 'bestenliste_screen.dart';
+import 'profil_screen.dart';
 import 'rennen_screen.dart';
 
 /// Startbildschirm: Zinssatz, Name und Rundenlänge wählen, dann losrennen.
@@ -33,6 +34,8 @@ class _StartScreenState extends State<StartScreen> {
   double _zinssatz = 3.0;
   int _rundenJahre = 10;
   String? _gruppe;
+  bool _steuernAktiv = false;
+  bool _wuerfelAn = true;
   final _nameController = TextEditingController();
   bool _laedt = false;
 
@@ -59,8 +62,14 @@ class _StartScreenState extends State<StartScreen> {
 
         final engine = RennenEngine(
           auswahl.ausschnitt,
-          SpielKonfiguration(zinssatz: _zinssatz),
+          SpielKonfiguration(
+            zinssatz: _zinssatz,
+            steuernAktiv: _steuernAktiv,
+            teilfreistellung: SpielKonfiguration.teilfreistellungFuerGruppe(aktie.gruppe),
+          ),
           vorlauf: auswahl.vorlauf,
+          wuerfelAktiv: _wuerfelAn,
+          wuerfelSeed: random.nextInt(1 << 32),
         );
         if (!mounted) return;
         await Navigator.of(context).push(
@@ -164,6 +173,27 @@ class _StartScreenState extends State<StartScreen> {
                 ],
               ),
               const SizedBox(height: 16),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Steuern berücksichtigen', style: TextStyle(fontSize: 14)),
+                subtitle: const Text(
+                  'Abgeltungsteuer auf realisierte Gewinne – der Investor zahlt erst am Schluss.',
+                  style: TextStyle(fontSize: 11, color: ArcadeFarben.tinteHell),
+                ),
+                value: _steuernAktiv,
+                onChanged: (v) => setState(() => _steuernAktiv = v),
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Würfel-Investor', style: TextStyle(fontSize: 14)),
+                subtitle: const Text(
+                  'Ein vierter Läufer, der zufällig ein- und aussteigt – manchmal gewinnt er.',
+                  style: TextStyle(fontSize: 11, color: ArcadeFarben.tinteHell),
+                ),
+                value: _wuerfelAn,
+                onChanged: (v) => setState(() => _wuerfelAn = v),
+              ),
+              const SizedBox(height: 16),
               _feldTitel('Dein Name (für die Bestenliste)'),
               TextField(
                 controller: _nameController,
@@ -194,6 +224,16 @@ class _StartScreenState extends State<StartScreen> {
                 icon: Icons.emoji_events_rounded,
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const BestenlisteScreen()),
+                ),
+              ),
+              const SizedBox(height: 10),
+              CandyButton(
+                text: 'Mein Profil',
+                farbe: ArcadeFarben.sicherheit,
+                schatten: ArcadeFarben.sicherheitDunkel,
+                icon: Icons.insights_rounded,
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ProfilScreen()),
                 ),
               ),
             ],

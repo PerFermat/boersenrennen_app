@@ -38,9 +38,22 @@ class BestenlisteScreen extends StatelessWidget {
 
           return ListView.separated(
             padding: const EdgeInsets.all(12),
-            itemCount: eintraege.length,
+            itemCount: eintraege.length + 1,
             separatorBuilder: (context, i) => const SizedBox(height: 8),
-            itemBuilder: (_, i) => _karte(eintraege[i], i + 1),
+            itemBuilder: (_, i) {
+              if (i == 0) {
+                return const Padding(
+                  padding: EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    'Sortiert nach Perzentil – normiert innerhalb jeder Runde, dadurch über '
+                    'verschiedene Aktien hinweg vergleichbar. Einträge ohne Perzentil (vor '
+                    'diesem Update gespielt) stehen hinten.',
+                    style: TextStyle(fontSize: 11, color: ArcadeFarben.tinteHell),
+                  ),
+                );
+              }
+              return _karte(eintraege[i - 1], i);
+            },
           );
         },
       ),
@@ -96,15 +109,22 @@ class BestenlisteScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '${e.scoreVsInvestor > 0 ? '+' : ''}${e.scoreVsInvestor.toStringAsFixed(2)} %',
+                e.perzentil == null ? '–' : '${e.perzentil!.toStringAsFixed(0)}. Perzentil',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w900,
+                  color: e.perzentil == null ? ArcadeFarben.tinteHell : ArcadeFarben.investorDunkel,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                '${e.scoreVsInvestor > 0 ? '+' : ''}${e.scoreVsInvestor.toStringAsFixed(2)} % vs. Investor',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
                   color: gewonnen ? ArcadeFarben.spielerDunkel : ArcadeFarben.verkaufenSchatten,
                 ),
               ),
-              const Text('vs. Investor',
-                  style: TextStyle(fontSize: 9, color: ArcadeFarben.tinteHell)),
               const SizedBox(height: 2),
               Text(
                 '${e.scoreVsSicherheit > 0 ? '+' : ''}${e.scoreVsSicherheit.toStringAsFixed(2)} % vs. Sicher',

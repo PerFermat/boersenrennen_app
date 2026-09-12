@@ -5,7 +5,9 @@ import 'package:flutter/scheduler.dart';
 import 'package:intl/intl.dart';
 
 import '../domain/rennen_engine.dart';
+import '../theme/arcade_theme.dart';
 import 'kamera.dart';
+import 'laeufer_daten.dart';
 import 'weltkulisse.dart';
 
 /// Die Werte, die als Text im HUD stehen. Als Record: strukturelle Gleichheit
@@ -17,6 +19,7 @@ typedef HudDaten = ({
   String wertSpieler,
   String wertInvestor,
   String wertSicherheit,
+  String? wertWuerfel,
   bool investiert,
 });
 
@@ -81,37 +84,67 @@ class RennenController {
 
   static const double _restAnteil = 0.02;
 
-  /// Geglättete Depotwerte in der Reihenfolge Spieler, Investor, Sicherheit.
-  /// Aus diesen Werten wird auch die Kamera gespeist – so arbeitet das
-  /// Sicherheitsnetz der Kamera nie gegen die Glättung.
-  final List<double> angezeigteWerte = [0, 0, 0];
-  bool _werteInitialisiert = false;
+  /// Anzahl aktiver Läufer: 3, oder 4, wenn der Würfel-Investor mitspielt.
+  final int anzahlLaeufer;
 
-  /// Investitionsstatus je gespieltem Tag, ab Rundenbeginn (Index 0 = Tag der
-  /// Countdown-Entscheidung). Der Kurschart färbt sich damit **abschnittsweise**
-  /// ein – einmal vergangene Phasen bleiben in ihrer Farbe, auch wenn später
-  /// ge- oder verkauft wird. Nur der letzte (heutige) Eintrag ist noch lebendig
-  /// und wird bei jedem Kauf/Verkauf sofort aktualisiert.
-  final List<bool> investiertVerlauf = [];
+  /// Geglättete Depotwerte in der Reihenfolge Spieler, Investor, Sicherheit
+  /// (Würfel, falls aktiv). Aus diesen Werten wird auch die Kamera gespeist –
+  /// so arbeitet das Sicherheitsnetz der Kamera nie gegen die Glättung.
+  final List<double> angezeigteWerte;
+  bool _werteInitialisiert = false;
 
   /// **Stolpern.** Dauer der Kipp-Animation je Läufer, ab dem Auslöse-Puls aus
   /// der Engine ([RennenEngine.stolpertJetzt]).
   static const double stolperDauerSekunden = 0.4;
 
-  /// Verbleibende Stolper-Zeit je Läufer (Spieler, Investor, Sicherheit), in
-  /// Sekunden. 0 = kein Stolpern gerade.
-  final List<double> _stolperRest = [0, 0, 0];
+  /// Verbleibende Stolper-Zeit je Läufer, in Sekunden. 0 = kein Stolpern gerade.
+  final List<double> _stolperRest;
 
   /// Stolper-Intensität je Läufer, 1.0 = gerade ausgelöst, 0.0 = vorbei.
   /// Wird vom Painter direkt gelesen (gleiches Muster wie [angezeigteWerte]).
-  final List<double> stolperIntensitaet = [0, 0, 0];
+  final List<double> stolperIntensitaet;
 
   static final _euro = NumberFormat.currency(locale: 'de_DE', symbol: '€', decimalDigits: 0);
   static final _kursFormat = NumberFormat('#,##0.00', 'de_DE');
 
-  RennenController({required this.engine, required this.vsync}) {
+  RennenController({required this.engine, required this.vsync})
+      : anzahlLaeufer = engine.wuerfelAktiv ? 4 : 3,
+        angezeigteWerte = List.filled(engine.wuerfelAktiv ? 4 : 3, 0),
+        _stolperRest = List.filled(engine.wuerfelAktiv ? 4 : 3, 0),
+        stolperIntensitaet = List.filled(engine.wuerfelAktiv ? 4 : 3, 0) {
     hud = ValueNotifier(_baueHud());
   }
+
+  /// Läufer-Stammdaten für den Renderpfad – ersetzt die früher fest
+  /// verdrahtete Dreier-Liste. Bei deaktiviertem Würfel-Investor exakt 3
+  /// Einträge mit identischen Werten wie vor dieser Erweiterung.
+  List<LaeuferDaten> get laeufer => [
+        LaeuferDaten(
+          name: 'Du',
+          farbe: ArcadeFarben.spieler,
+          farbeDunkel: ArcadeFarben.spielerDunkel,
+          investiert: engine.spieler.investiert,
+        ),
+        const LaeuferDaten(
+          name: 'Investor',
+          farbe: ArcadeFarben.investor,
+          farbeDunkel: ArcadeFarben.investorDunkel,
+          investiert: true,
+        ),
+        const LaeuferDaten(
+          name: 'Sicherheit',
+          farbe: ArcadeFarben.sicherheit,
+          farbeDunkel: ArcadeFarben.sicherheitDunkel,
+          investiert: false,
+        ),
+        if (engine.wuerfelAktiv)
+          LaeuferDaten(
+            name: 'Würfel',
+            farbe: ArcadeFarben.wuerfel,
+            farbeDunkel: ArcadeFarben.wuerfelDunkel,
+            investiert: engine.wuerfel.investiert,
+          ),
+      ];
 
   void start() {
     _ticker = vsync.createTicker(_beiTick)..start();
@@ -146,13 +179,15 @@ class RennenController {
         if (schritte > 40) schritte = 40;
         while (schritte-- > 0 && !engine.fertig) {
           engine.schritt();
-          investiertVerlauf.add(engine.spieler.investiert);
           if (engine.stolpertJetzt) {
             _stolperRest[1] = stolperDauerSekunden; // Investor: immer im Markt.
             if (engine.spieler.investiert) {
               _stolperRest[0] = stolperDauerSekunden; // Spieler: nur wenn investiert.
             }
             // Sicherheit (Index 2): kein Kursrisiko -> stolpert nie.
+            if (engine.wuerfelAktiv && engine.wuerfel.investiert) {
+              _stolperRest[3] = stolperDauerSekunden; // Würfel: nur wenn investiert.
+            }
           }
         }
       }
@@ -162,7 +197,7 @@ class RennenController {
     engine.phase += dt * (2 + 8 * engine.stimmung);
     laufzeit += dt;
 
-    for (var i = 0; i < 3; i++) {
+    for (var i = 0; i < anzahlLaeufer; i++) {
       if (_stolperRest[i] > 0) {
         _stolperRest[i] = (_stolperRest[i] - dt).clamp(0.0, stolperDauerSekunden);
       }
@@ -184,16 +219,21 @@ class RennenController {
   }
 
   void _aktualisierePositionen(double dt) {
-    final echt = [engine.wertSpieler, engine.wertInvestor, engine.wertSicherheit];
+    final echt = <double>[
+      engine.wertSpieler,
+      engine.wertInvestor,
+      engine.wertSicherheit,
+      if (engine.wuerfelAktiv) engine.wertWuerfel!,
+    ];
 
     if (!_werteInitialisiert) {
-      for (var i = 0; i < 3; i++) {
+      for (var i = 0; i < anzahlLaeufer; i++) {
         angezeigteWerte[i] = echt[i];
       }
       _werteInitialisiert = true;
     } else {
       final f = 1 - math.exp(-dt * (-math.log(_restAnteil) / laeuferGlaettungSekunden));
-      for (var i = 0; i < 3; i++) {
+      for (var i = 0; i < anzahlLaeufer; i++) {
         angezeigteWerte[i] += (echt[i] - angezeigteWerte[i]) * f;
       }
     }
@@ -228,27 +268,18 @@ class RennenController {
         wertSpieler: _euro.format(engine.wertSpieler),
         wertInvestor: _euro.format(engine.wertInvestor),
         wertSicherheit: _euro.format(engine.wertSicherheit),
+        wertWuerfel: engine.wuerfelAktiv ? _euro.format(engine.wertWuerfel!) : null,
         investiert: engine.spieler.investiert,
       );
 
   void kaufen() {
     engine.kaufen();
-    _aktualisiereHeutigenVerlaufsEintrag();
     hud.value = _baueHud();
   }
 
   void verkaufen() {
     engine.verkaufen();
-    _aktualisiereHeutigenVerlaufsEintrag();
     hud.value = _baueHud();
-  }
-
-  /// Der heutige (letzte) Eintrag ist noch nicht vergangen – ein Kauf/Verkauf
-  /// am selben Tag korrigiert ihn, statt einen neuen Tag anzulegen.
-  void _aktualisiereHeutigenVerlaufsEintrag() {
-    if (investiertVerlauf.isNotEmpty) {
-      investiertVerlauf[investiertVerlauf.length - 1] = engine.spieler.investiert;
-    }
   }
 
   /// Sofort investieren, noch während des Countdowns – beendet ihn vorzeitig.
@@ -264,14 +295,12 @@ class RennenController {
   void _beendeCountdown() {
     if (!countdownLaeuft.value) return;
     countdownLaeuft.value = false;
-    // Tag 0 der Runde beginnt mit der gerade getroffenen Entscheidung.
-    investiertVerlauf.add(engine.spieler.investiert);
   }
 
   /// Beendet die Runde vorzeitig mit dem aktuellen Stand.
   void rundeBeenden() {
     if (beendet.value) return;
-    engine.fertig = true;
+    engine.beendeRunde();
     hud.value = _baueHud();
     beendet.value = true;
   }

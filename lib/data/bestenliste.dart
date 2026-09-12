@@ -20,6 +20,16 @@ class BestenlisteEintrag {
   final double scoreVsSicherheit;
   final DateTime erstelltAm;
 
+  /// Endbetrag des Würfel-Investors, falls er mitgespielt hat. `null` bei
+  /// Einträgen ohne Würfel-Investor (auch vor Einführung dieses Features).
+  final double? endbetragWuerfel;
+
+  /// Monte-Carlo-Perzentil dieser Runde – normiert innerhalb der Runde,
+  /// dadurch über verschiedene Titel/Zeiträume hinweg vergleichbar. `null`
+  /// bei Einträgen von vor Einführung des Perzentils oder ohne einen
+  /// einzigen Trade (siehe [RundenAuswertung]/Monte-Carlo).
+  final double? perzentil;
+
   const BestenlisteEintrag({
     required this.spielername,
     required this.ticker,
@@ -33,6 +43,8 @@ class BestenlisteEintrag {
     required this.scoreVsInvestor,
     required this.scoreVsSicherheit,
     required this.erstelltAm,
+    this.endbetragWuerfel,
+    this.perzentil,
   });
 
   Map<String, dynamic> zuJson() => {
@@ -48,6 +60,8 @@ class BestenlisteEintrag {
         'scoreVsInvestor': scoreVsInvestor,
         'scoreVsSicherheit': scoreVsSicherheit,
         'erstelltAm': erstelltAm.toIso8601String(),
+        'endbetragWuerfel': endbetragWuerfel,
+        'perzentil': perzentil,
       };
 
   factory BestenlisteEintrag.vonJson(Map<String, dynamic> j) => BestenlisteEintrag(
@@ -63,6 +77,10 @@ class BestenlisteEintrag {
         scoreVsInvestor: (j['scoreVsInvestor'] as num).toDouble(),
         scoreVsSicherheit: (j['scoreVsSicherheit'] as num).toDouble(),
         erstelltAm: DateTime.parse(j['erstelltAm'] as String),
+        // Fehlt bei Einträgen aus der Zeit vor dem Würfel-Investor -> null.
+        endbetragWuerfel: (j['endbetragWuerfel'] as num?)?.toDouble(),
+        // Fehlt bei Einträgen aus der Zeit vor Einführung des Perzentils -> null.
+        perzentil: (j['perzentil'] as num?)?.toDouble(),
       );
 }
 
@@ -80,7 +98,10 @@ class BestenlisteRepository extends ChangeNotifier {
     _laden();
   }
 
-  /// Absteigend nach der rankingrelevanten Outperformance sortiert.
+  /// Absteigend nach [BestenlisteEintrag.perzentil] sortiert (V15) – normiert
+  /// über verschiedene Titel/Zeiträume hinweg vergleichbar, anders als die
+  /// rohe Outperformance. Einträge ohne Perzentil stehen hinten, unter sich
+  /// nach [BestenlisteEintrag.scoreVsInvestor] sortiert.
   List<BestenlisteEintrag> get eintraege => List.unmodifiable(_eintraege);
 
   void _laden() {
@@ -99,7 +120,15 @@ class BestenlisteRepository extends ChangeNotifier {
   }
 
   void _sortieren() {
-    _eintraege.sort((a, b) => b.scoreVsInvestor.compareTo(a.scoreVsInvestor));
+    _eintraege.sort((a, b) {
+      if (a.perzentil == null && b.perzentil == null) {
+        // Tiebreaker unter Alteinträgen ohne Perzentil.
+        return b.scoreVsInvestor.compareTo(a.scoreVsInvestor);
+      }
+      if (a.perzentil == null) return 1;
+      if (b.perzentil == null) return -1;
+      return b.perzentil!.compareTo(a.perzentil!);
+    });
   }
 
   Future<void> hinzufuegen(BestenlisteEintrag eintrag) async {

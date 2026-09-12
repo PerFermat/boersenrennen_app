@@ -23,13 +23,6 @@ class RennstreckePainter extends CustomPainter {
   RennstreckePainter(this.controller, {required Listenable repaint})
       : super(repaint: repaint);
 
-  static const _farben = [
-    (ArcadeFarben.spieler, ArcadeFarben.spielerDunkel),
-    (ArcadeFarben.investor, ArcadeFarben.investorDunkel),
-    (ArcadeFarben.sicherheit, ArcadeFarben.sicherheitDunkel),
-  ];
-  static const _namen = ['Du', 'Investor', 'Sicherheit'];
-
   static final _euroFormat = NumberFormat.decimalPattern('de_DE');
 
   /// Textlayout ist vergleichsweise teuer – die Beschriftungen ändern sich nur
@@ -41,6 +34,7 @@ class RennstreckePainter extends CustomPainter {
     final e = controller.engine;
     final k = controller.kamera;
     final kulisse = controller.kulisse;
+    final laeufer = controller.laeufer;
     final w = size.width, h = size.height;
 
     kulisse.setzeBreite(w);
@@ -54,9 +48,9 @@ class RennstreckePainter extends CustomPainter {
     // bündig zwischen Horizont und Bildunterkante; wird herausgezoomt, bleibt
     // er dabei **mittig in der Wiese** statt an einer Kante zu kleben – oben
     // und unten öffnet sich dann gleich viel offenes Feld.
-    final basisBahnH = (h - himmelH - schildH) / 3;
+    final basisBahnH = (h - himmelH - schildH) / laeufer.length;
     final bahnH = basisBahnH * k.groesseFaktor;
-    final bahnBlockH = 3 * bahnH;
+    final bahnBlockH = laeufer.length * bahnH;
     final wieseH = h - himmelH;
     final restRaum = wieseH - schildH - bahnBlockH;
     final schildOben = himmelH + restRaum / 2;
@@ -90,10 +84,10 @@ class RennstreckePainter extends CustomPainter {
         Paint()..color = ArcadeFarben.wieseDunkel);
 
     // ---------- Bahnen ----------
-    for (var i = 0; i < 3; i++) {
+    for (var i = 0; i < laeufer.length; i++) {
       final oben = bahnOben + i * bahnH;
       _bahnTextur(canvas, w, oben, bahnH, i, k.groesseFaktor);
-      if (i < 2) _trennlinie(canvas, oben + bahnH, w, k.groesseFaktor);
+      if (i < laeufer.length - 1) _trennlinie(canvas, oben + bahnH, w, k.groesseFaktor);
     }
 
     // ---------- Meilensteine ----------
@@ -110,8 +104,8 @@ class RennstreckePainter extends CustomPainter {
 
     // ---------- Bahnbeschriftung (hinter den Läufern) ----------
     if (bahnH > 30) {
-      for (var i = 0; i < 3; i++) {
-        _label(canvas, _namen[i], Offset(8, bahnOben + i * bahnH + 3),
+      for (var i = 0; i < laeufer.length; i++) {
+        _label(canvas, laeufer[i].name, Offset(8, bahnOben + i * bahnH + 3),
             (bahnH * 0.22).clamp(8.0, 12.0));
       }
     }
@@ -119,21 +113,15 @@ class RennstreckePainter extends CustomPainter {
     // ---------- Läufer ----------
     final radius = (basisBahnH * 0.26).clamp(10.0, 34.0) * k.groesseFaktor;
     // Nur bei klar steigendem Jahrestrend gibt's Rennstreifen – einmal pro
-    // Frame bestimmt, gilt für alle drei Läufer gleich.
+    // Frame bestimmt, gilt für alle Läufer gleich.
     final starkSteigend = e.starkSteigend;
-    for (var i = 0; i < 3; i++) {
+    for (var i = 0; i < laeufer.length; i++) {
       final bodenY = bahnOben + i * bahnH + bahnH - radius * 0.55;
       final x = xVon(controller.angezeigteWerte[i])
           .clamp(radius * 1.2, w - radius * 1.2);
 
-      final investiert = switch (i) {
-        0 => e.spieler.investiert,
-        1 => true,
-        _ => false, // Sicherheit ist nie im Markt -> trabt immer
-      };
-
-      _laeufer(canvas, Offset(x, bodenY), _farben[i].$1, _farben[i].$2, investiert,
-          starkSteigend, controller.stolperIntensitaet[i], radius);
+      _laeufer(canvas, Offset(x, bodenY), laeufer[i].farbe, laeufer[i].farbeDunkel,
+          laeufer[i].investiert, starkSteigend, controller.stolperIntensitaet[i], radius);
     }
   }
 

@@ -21,6 +21,8 @@ class ArcadeFarben {
   static const investorDunkel = Color(0xFF2C6FC4);
   static const sicherheit = Color(0xFFF2B544);
   static const sicherheitDunkel = Color(0xFFC98D1C);
+  static const wuerfel = Color(0xFFB569E8);
+  static const wuerfelDunkel = Color(0xFF7C3FA6);
 
   static const kaufen = Color(0xFF3FBF50);
   static const kaufenSchatten = Color(0xFF2A8F38);

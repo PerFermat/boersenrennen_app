@@ -43,6 +43,21 @@ class Kursreihe {
     return Kursreihe._(_epochTage, _kurse, _von + von, _von + bis);
   }
 
+  /// Unabhängige Kopie des **sichtbaren** Ausschnitts. Im Gegensatz zu
+  /// [ausschnitt] werden die Daten tatsächlich kopiert – nötig, bevor eine
+  /// Kursreihe eine Isolate-Grenze überquert (z. B. für `compute()`), weil
+  /// sonst über die geteilten Arrays unnötig die komplette zugrunde liegende
+  /// Historie mitkopiert/serialisiert würde.
+  Kursreihe materialisiert() {
+    final epochTage = Int32List(laenge);
+    final kurse = Float64List(laenge);
+    for (var i = 0; i < laenge; i++) {
+      epochTage[i] = epochTag(i);
+      kurse[i] = kurs(i);
+    }
+    return Kursreihe(epochTage, kurse);
+  }
+
   /// Kleinster Index, dessen Epochtag >= [zielTag] ist; sonst [laenge].
   int binaereSuche(int zielTag) {
     var lo = 0, hi = laenge;
