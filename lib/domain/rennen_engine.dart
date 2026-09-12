@@ -223,19 +223,34 @@ class RennenEngine {
   /// Ob Rennstreifen gezeichnet werden dürfen (zusätzlich zu „investiert").
   bool get starkSteigend => (renditeJahr ?? 0) > starkSteigendSchwelle;
 
-  /// Latente Steuer auf den unrealisierten Buchgewinn des Investors – rein
-  /// informativ, wird NIE von [wertInvestor] abgezogen (sonst würde Score/
-  /// Bestenliste rückwirkend verzerrt). Reine Funktion des aktuellen
-  /// Zustands, darf beliebig oft ohne Seiteneffekt gelesen werden.
-  double get latenteSteuerInvestor {
+  /// Latente Steuer auf einen noch nicht realisierten Buchgewinn – rein
+  /// informativ, wird NIE von einem Depotwert abgezogen (sonst würde Score/
+  /// Bestenliste rückwirkend verzerrt). Reine Funktion des übergebenen
+  /// Zustands, darf beliebig oft ohne Seiteneffekt aufgerufen werden.
+  double _latenteSteuer({required double depotwert, required double einstand}) {
     if (!cfg.steuernAktiv) return 0;
-    final eingezahlt = cfg.startCash + cfg.monatsEinzahlung * einzahlungen;
-    final buchgewinn = wertInvestor - eingezahlt;
+    final buchgewinn = depotwert - einstand;
     if (buchgewinn <= 0) return 0;
     final steuerbasis = buchgewinn * (1 - cfg.teilfreistellung);
     final zuVersteuern = math.max(0.0, steuerbasis - cfg.sparerpauschbetrag);
     return zuVersteuern * cfg.steuersatz;
   }
+
+  /// Latente Steuer des Investors. Sein Einstand ist die Summe aller
+  /// Kapitalzuflüsse – er verkauft nie, also ist alles noch im Depot.
+  double get latenteSteuerInvestor => _latenteSteuer(
+        depotwert: wertInvestor,
+        einstand: cfg.startCash + cfg.monatsEinzahlung * einzahlungen,
+      );
+
+  /// Latente Steuer auf die am Rundenende noch **offene** Position des
+  /// Spielers. Ohne sie wäre der Vergleich mit [latenteSteuerInvestor]
+  /// asymmetrisch: ein investiert endender Spieler genießt dieselbe Stundung
+  /// wie der Investor, stünde in der Gegenüberstellung aber so da, als hätte
+  /// er sie nicht.
+  double get latenteSteuerSpieler => spieler.stueck <= 0
+      ? 0
+      : _latenteSteuer(depotwert: spieler.stueck * kurs, einstand: _einstand);
 
   /// Steuer auf einen realisierten Verkaufsgewinn. Reihenfolge: Verlusttopf
   /// verrechnet sich zuerst gegen den rohen Gewinn, die Teilfreistellung
@@ -268,7 +283,10 @@ class RennenEngine {
     stolpertJetzt = false;
 
     if (i >= reihe.laenge - 1) {
-      fertig = true;
+      // Über beendeRunde(), nicht über ein direktes `fertig = true` – sonst
+      // bliebe bei einer Reihe mit nur einem Kurs das laufende Steuer-Teiljahr
+      // der Sicherheit für immer unabgerechnet.
+      beendeRunde();
       return;
     }
 
@@ -292,12 +310,24 @@ class RennenEngine {
     if (cfg.steuernAktiv) {
       final jahr = _jahr(neuerTag);
       if (jahr != _letzterSteuerjahr) {
+        // Der Zins dieses Schritts fällt über den Jahreswechsel hinweg an
+        // (Fr 31.12. -> Mo 02.01. = 3 Kalendertage) und verteilt sich auf
+        // beide Jahre. Ihn komplett dem neuen Jahr zuzuschlagen, wie es die
+        // frühere Reihenfolge tat, verschob Freibetragsnutzung und Steuer um
+        // ein paar Tage Zinsertrag.
+        final jahresStart = Kursreihe.zuEpochTag(DateTime.utc(jahr, 1, 1));
+        final anteilAltesJahr =
+            tage > 0 ? (jahresStart - vorherTag).clamp(0, tage) / tage : 0.0;
+
+        _sicherheitZinsDiesesJahr += zinsBetrag * anteilAltesJahr;
         _verrechneSicherheitJahressteuer();
         _spielerFreibetragGenutzt = 0;
         _wuerfelFreibetragGenutzt = 0;
         _letzterSteuerjahr = jahr;
+        _sicherheitZinsDiesesJahr += zinsBetrag * (1 - anteilAltesJahr);
+      } else {
+        _sicherheitZinsDiesesJahr += zinsBetrag;
       }
-      _sicherheitZinsDiesesJahr += zinsBetrag;
     }
 
     kurs = neuerKurs;

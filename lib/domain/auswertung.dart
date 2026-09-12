@@ -298,9 +298,12 @@ class RundenAuswertung {
   /// `null` bei 0 Trades.
   final TeuersterKlick? teuersterKlick;
 
-  /// Gezahlte Steuer des Spielers minus latente Steuer des Investors – der
-  /// Steuernachteil des Handelns gegenüber dem Stunden bis zum Rundenende.
-  /// `0`, wenn Steuern deaktiviert sind.
+  /// Steuerlast des Spielers (gezahlt **plus** latent auf seine am Ende noch
+  /// offene Position) minus latente Steuer des Investors – der Steuernachteil
+  /// des Handelns gegenüber dem Stunden bis zum Rundenende. Die latente Seite
+  /// des Spielers gehört zwingend dazu: ohne sie erschiene ein investiert
+  /// endender Spieler als steuerlich günstiger, obwohl er dieselbe Stundung
+  /// genießt wie der Investor. `0`, wenn Steuern deaktiviert sind.
   final double steuerNachteilGegenInvestor;
 
   /// Kumulierter Preisfaktor über die gesamte gespielte Zeit. Kaufkraft in
@@ -309,8 +312,17 @@ class RundenAuswertung {
 
   final double endwertSpielerReal, endwertInvestorReal, endwertSicherheitReal;
 
+  /// Ob die Inflationstabelle den gespielten Zeitraum weit genug abdeckt, um
+  /// eine Kaufkraft-Aussage zu tragen (siehe [Preisfaktor.istBelastbar]).
+  /// Ist das `false`, sind alle `…Real`-Werte zwar berechnet, aber zu
+  /// optimistisch – die UI blendet den Block dann aus, statt eine
+  /// Nullteuerung zu behaupten, die nur aus fehlenden Daten stammt.
+  final bool kaufkraftIstBelastbar;
+
   /// Kern von V4: real (nach Kaufkraft) liegt die Sicherheit sogar unter der
-  /// Summe der Einzahlungen.
+  /// Summe der Einzahlungen – diese selbst ebenfalls auf Preise des
+  /// Rundenbeginns zurückgerechnet, sonst verglichen sich zwei Preisstände.
+  /// `false`, wenn die Kaufkraft-Aussage nicht belastbar ist.
   final bool sicherheitRealUnterEinzahlungen;
 
   final double endwertUmgekehrt;
@@ -381,6 +393,7 @@ class RundenAuswertung {
     required this.teuersterKlick,
     required this.steuerNachteilGegenInvestor,
     required this.preisfaktorGesamt,
+    required this.kaufkraftIstBelastbar,
     required this.endwertSpielerReal,
     required this.endwertInvestorReal,
     required this.endwertSicherheitReal,
@@ -489,20 +502,26 @@ class RundenAuswertung {
     final schlechtesteTage = [...alleTage]
       ..sort((a, b) => a.tagesrendite.compareTo(b.tagesrendite));
 
+    // Aktionsliste für „durchgehend investiert, aber ohne die Tagesrendite der
+    // ausgeschlossenen Tage". Konstruiert über den Soll-Zustand je Tag statt
+    // über Kauf-/Verkaufspaare: Die Rendite von Tag d fällt genau dem zu, der
+    // am Ende von Tag d-1 Stücke hält. Tag d auszulassen heißt also: an d-1
+    // draußen sein. Aus dieser einen Regel ergibt sich alles Übrige von selbst
+    // – auch benachbarte Ausschlusstage (die Extremtage einer Runde liegen
+    // typischerweise dicht beieinander), für die die frühere Paarbildung zwei
+    // Aktionen auf denselben Tag legte und damit den Rest der Liste verlor,
+    // sowie der frühere Sonderfall d == 1.
     List<GeplanteAktion> ohneTageAktionen(List<TopTag> ausgeschlossen) {
-      final tage = ausgeschlossen.take(5).map((t) => t.tagIndex).toList()..sort();
+      final aus = ausgeschlossen.take(5).map((t) => t.tagIndex - 1).toSet();
       final aktionen = <GeplanteAktion>[];
-      // Sonderfall Tag 1: dann fällt der Anfangskauf mit dem nötigen Verkauf
-      // auf Tag 0 zusammen – es genügt, gar nicht erst zu kaufen und stattdessen
-      // erst am Ausschlusstag wieder einzusteigen.
-      if (!tage.contains(1)) {
-        aktionen.add(const GeplanteAktion(0, true));
+      var investiert = false;
+      for (var d = 0; d < reihe.laenge; d++) {
+        final soll = !aus.contains(d);
+        if (soll != investiert) {
+          aktionen.add(GeplanteAktion(d, soll));
+          investiert = soll;
+        }
       }
-      for (final d in tage) {
-        if (d != 1) aktionen.add(GeplanteAktion(d - 1, false));
-        aktionen.add(GeplanteAktion(d, true));
-      }
-      aktionen.sort((a, b) => a.tagIndex.compareTo(b.tagIndex));
       return aktionen;
     }
 
@@ -521,11 +540,19 @@ class RundenAuswertung {
     ).endwert(letzterKurs);
 
     // ---- „Der teuerste Klick" ----
+    // `simuliereSpielerpfad` kennt keine Abgeltungsteuer. Der Ist-Wert wird
+    // deshalb für den Vergleich entsteuert, sonst erschiene bei aktiver Steuer
+    // *jeder* Trade als teuer – der Vergleichslauf hätte einen Vorteil, den er
+    // nur der fehlenden Modellierung verdankt. Bewusste Näherung: die gezahlte
+    // Steuer war während der Runde nicht mitverzinst. Bei `steuernAktiv: false`
+    // (Default) ist der Summand exakt 0, das Verhalten also unverändert.
+    final vergleichsbasisSpieler = endwertSpieler + engine.gezahlteSteuerSpieler;
+
     TeuersterKlick? teuersterKlick;
     for (var i = 0; i < engine.trades.length; i++) {
       final endstandOhne =
           simuliereOhneTrade(reihe, engine.cfg, engine.trades, i);
-      final kosten = endstandOhne - endwertSpieler;
+      final kosten = endstandOhne - vergleichsbasisSpieler;
       if (teuersterKlick == null || kosten > teuersterKlick.kosten) {
         teuersterKlick = TeuersterKlick(
           trade: engine.trades[i],
@@ -540,8 +567,19 @@ class RundenAuswertung {
     // Basiert auf dem tatsächlich zuletzt simulierten Tag, nicht auf
     // reihe.letzterTag – korrekt auch bei vorzeitig beendeten Runden.
     final letzterSimulierterTag = reihe.epochTag(engine.i);
-    final preisfaktorGesamt = Inflation.preisfaktor(reihe.ersterTag, letzterSimulierterTag);
-    final eingezahltGesamt = engine.cfg.startCash + engine.cfg.monatsEinzahlung * engine.einzahlungen;
+    final preisfaktor =
+        Inflation.preisfaktorMitAbdeckung(reihe.ersterTag, letzterSimulierterTag);
+    final preisfaktorGesamt = preisfaktor.faktor;
+
+    // Jede Einzahlung auf Preise des Rundenbeginns zurückgerechnet. Den realen
+    // Endwert gegen die *nominale* Einzahlungssumme zu stellen wäre ein
+    // Vergleich zweier verschiedener Preisstände und würde den Effekt
+    // überzeichnen – und genau dieser Satz ist die Kernaussage des Blocks.
+    var eingezahltReal = engine.cfg.startCash;
+    for (final t in _einzahlungsTage(reihe, engine.i)) {
+      eingezahltReal +=
+          engine.cfg.monatsEinzahlung / Inflation.preisfaktor(reihe.ersterTag, t);
+    }
 
     // ---- Kontrafaktische Vergleiche (V9) ----
     final endwertUmgekehrt = simuliereUmgekehrt(reihe, engine.cfg, engine.trades);
@@ -616,12 +654,16 @@ class RundenAuswertung {
       endwertOhneBesteFuenfTage: endwertOhneBesteFuenfTage,
       endwertOhneSchlechtesteFuenfTage: endwertOhneSchlechtesteFuenfTage,
       teuersterKlick: teuersterKlick,
-      steuerNachteilGegenInvestor: engine.gezahlteSteuerSpieler - engine.latenteSteuerInvestor,
+      steuerNachteilGegenInvestor: engine.gezahlteSteuerSpieler +
+          engine.latenteSteuerSpieler -
+          engine.latenteSteuerInvestor,
       preisfaktorGesamt: preisfaktorGesamt,
       endwertSpielerReal: endwertSpieler / preisfaktorGesamt,
       endwertInvestorReal: endwertInvestor / preisfaktorGesamt,
       endwertSicherheitReal: engine.wertSicherheit / preisfaktorGesamt,
-      sicherheitRealUnterEinzahlungen: engine.wertSicherheit / preisfaktorGesamt < eingezahltGesamt,
+      kaufkraftIstBelastbar: preisfaktor.istBelastbar,
+      sicherheitRealUnterEinzahlungen:
+          preisfaktor.istBelastbar && engine.wertSicherheit / preisfaktorGesamt < eingezahltReal,
       endwertUmgekehrt: endwertUmgekehrt,
       endwertOhneEntscheidungen: endwertOhneEntscheidungen,
       versatzErgebnisse: versatzErgebnisse,

@@ -3,7 +3,9 @@ import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:boersenrennen_app/data/aktien_katalog.dart';
 import 'package:boersenrennen_app/data/kursdaten_codec.dart';
+import 'package:boersenrennen_app/data/kursdaten_repository.dart';
 import 'package:boersenrennen_app/domain/kursreihe.dart';
 import 'package:boersenrennen_app/domain/runden_waehler.dart';
 import 'package:boersenrennen_app/domain/score.dart';
@@ -56,6 +58,30 @@ void main() {
 
     test('lehnt eine zu kurze Datei ab', () {
       expect(() => KursdatenCodec.dekodiere(ByteData(6)), throwsFormatException);
+    });
+
+    // P4: Ohne diese Prüfungen liefert eine beschädigte oder halb geschriebene
+    // Datei keinen Absturz, sondern still falsche Kurse – die Binärsuche setzt
+    // streng aufsteigende Epochtage voraus.
+    test('lehnt nicht streng aufsteigende Epochtage ab', () {
+      final rueckwaerts = baueBin(0, [0, 5, 3], [1.0, 2.0, 3.0]);
+      expect(() => KursdatenCodec.dekodiere(rueckwaerts), throwsFormatException);
+
+      final doppelt = baueBin(0, [0, 5, 5], [1.0, 2.0, 3.0]);
+      expect(() => KursdatenCodec.dekodiere(doppelt), throwsFormatException);
+    });
+
+    test('lehnt eine Datei ohne Kurse ab', () {
+      expect(() => KursdatenCodec.dekodiere(baueBin(0, [], [])), throwsFormatException);
+    });
+
+    test('lehnt unbrauchbare Kurse ab', () {
+      expect(() => KursdatenCodec.dekodiere(baueBin(0, [0, 1], [10.0, 0.0])),
+          throwsFormatException);
+      expect(() => KursdatenCodec.dekodiere(baueBin(0, [0, 1], [10.0, -5.0])),
+          throwsFormatException);
+      expect(() => KursdatenCodec.dekodiere(baueBin(0, [0, 1], [10.0, double.nan])),
+          throwsFormatException);
     });
   });
 
@@ -153,6 +179,63 @@ void main() {
     test('Referenz 0 ergibt 0 statt unendlich', () {
       expect(Score.vsInvestor(1000, 0), 0.0);
       expect(Score.vsSicherheit(1000, 0), 0.0);
+    });
+  });
+
+  group('KursdatenRepository.zufall (P3)', () {
+    AktienEintrag baueAktie(String ticker, String gruppe, double jahre) => AktienEintrag(
+          ticker: ticker,
+          name: ticker,
+          kategorie: gruppe,
+          gruppe: gruppe,
+          datei: '$ticker.bin',
+          anzahl: 1000,
+          ersterTag: DateTime.utc(2020, 1, 1).subtract(Duration(days: (jahre * 365.25).round())),
+          letzterTag: DateTime.utc(2020, 1, 1),
+          quelle: 'bundled',
+        );
+
+    final katalog = [
+      baueAktie('LANG', 'Einzelaktien', 25),
+      baueAktie('KURZ', 'Welt-ETF', 12),
+    ];
+
+    test('liefert null statt eines zu kurzen Titels, wenn die Gruppe keinen langen hat',
+        () {
+      // Genau der Fall "Welt-ETFs + 20 Jahre": vorher fiel die Auswahl still
+      // auf den zu kurzen Titel zurück, den RundenWaehler.waehle danach
+      // verwarf – der Startknopf tat wortlos nichts.
+      final gewaehlt = KursdatenRepository()
+          .zufall(katalog, Random(1), minJahre: 20, gruppe: 'Welt-ETF');
+
+      expect(gewaehlt, isNull);
+    });
+
+    test('weicht nicht auf eine fremde Gruppe aus', () {
+      final gewaehlt = KursdatenRepository()
+          .zufall(katalog, Random(1), minJahre: 10, gruppe: 'Themen-Länder-ETF');
+
+      expect(gewaehlt, isNull);
+    });
+
+    test('wählt innerhalb der Gruppe, wenn ein Titel lang genug ist', () {
+      final gewaehlt = KursdatenRepository()
+          .zufall(katalog, Random(1), minJahre: 20, gruppe: 'Einzelaktien');
+
+      expect(gewaehlt?.ticker, 'LANG');
+    });
+
+    test('hatSpielbareAktie deckt sich mit dem Ergebnis von zufall', () {
+      final repo = KursdatenRepository();
+      for (final gruppe in [null, 'Einzelaktien', 'Welt-ETF']) {
+        for (final jahre in [10.0, 20.0]) {
+          expect(
+            repo.hatSpielbareAktie(katalog, minJahre: jahre, gruppe: gruppe),
+            repo.zufall(katalog, Random(1), minJahre: jahre, gruppe: gruppe) != null,
+            reason: 'Gruppe $gruppe, $jahre Jahre',
+          );
+        }
+      }
     });
   });
 }

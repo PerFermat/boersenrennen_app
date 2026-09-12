@@ -45,17 +45,32 @@ class _StartScreenState extends State<StartScreen> {
     super.dispose();
   }
 
+  /// Zeigt einen Hinweis, statt den Startknopf wortlos wieder freizugeben.
+  void _melde(String text) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(text)));
+  }
+
   Future<void> _rundeStarten() async {
     setState(() => _laedt = true);
     final repo = context.read<KursdatenRepository>();
     final random = Random();
+    var gestartet = false;
 
     try {
       final katalog = await repo.katalog();
-      // Mehrere Versuche, falls eine Aktie für die Rundenlänge zu kurz ist.
+      // Mehrere Versuche, falls der gezogene Titel zwar lang genug ist, der
+      // gezogene Startzeitpunkt aber keinen vollen Ausschnitt mehr hergibt.
       for (var versuch = 0; versuch < 12; versuch++) {
         final aktie = repo.zufall(katalog, random,
             minJahre: _rundenJahre.toDouble(), gruppe: _gruppe);
+        if (aktie == null) {
+          _melde('Für $_rundenJahre Jahre gibt es in dieser Gruppe keinen Titel '
+              'mit genug Historie. Wähle eine kürzere Runde oder eine andere Gruppe.');
+          return;
+        }
         final reihe = await repo.lade(aktie);
         final auswahl = RundenWaehler(random).waehle(reihe, rundenJahre: _rundenJahre);
         if (auswahl == null) continue;
@@ -72,6 +87,7 @@ class _StartScreenState extends State<StartScreen> {
           wuerfelSeed: random.nextInt(1 << 32),
         );
         if (!mounted) return;
+        gestartet = true;
         await Navigator.of(context).push(
           MaterialPageRoute(
             builder: (_) => RennenScreen(
@@ -84,6 +100,17 @@ class _StartScreenState extends State<StartScreen> {
         );
         break;
       }
+      if (!gestartet) {
+        _melde('Es ließ sich kein passender Zeitraum von $_rundenJahre Jahren '
+            'ziehen. Versuch es noch einmal oder wähle eine kürzere Runde.');
+      }
+    } catch (fehler) {
+      // Bewusst ohne `on`-Klausel: die relevanten Fälle sind teils Exception
+      // (FormatException aus dem Codec), teils Error (UnsupportedError bei
+      // unbekannter Quelle, FlutterError bei fehlendem Asset). Ohne diesen
+      // Zweig verschwand nur der Ladeindikator und der Nutzer stand ohne
+      // jede Erklärung wieder vor dem Startmenü.
+      _melde('Die Kursdaten konnten nicht geladen werden: $fehler');
     } finally {
       if (mounted) setState(() => _laedt = false);
     }

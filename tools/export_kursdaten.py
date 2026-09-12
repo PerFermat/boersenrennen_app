@@ -20,13 +20,17 @@
 import argparse
 import json
 import math
+import os
 import re
 import struct
 import sys
-from datetime import date, timedelta
+from datetime import date
 
 import warnings
-warnings.filterwarnings("ignore")
+# Gezielt statt pauschal: ein globales filterwarnings("ignore") verschluckt
+# auch Hinweise auf Datenlücken und auf Formatumstellungen von yfinance –
+# genau die Warnungen, die diesen Export still kaputtgehen lassen würden.
+warnings.filterwarnings("ignore", category=FutureWarning, module="yfinance")
 
 import yfinance as yf
 
@@ -39,8 +43,24 @@ START_DATUM = "1995-01-01"
 # Echte Kursstürze (z. B. Apple -52 % am 29.09.2000) sind legitim.
 AUFFAELLIG = 0.35
 
-# Eine Runde braucht mindestens 10 Jahre Historie.
+# Weniger Kurse als das ergibt keine spielbare Reihe.
 MIN_TAGE = 250
+
+# Handelspause in Kalendertagen, ab der ein Hinweis erscheint. Über
+# Feiertagsbrücken hinaus deutet so etwas auf Delisting oder eine
+# Handelsaussetzung hin -> die Reihe hat dann eine Lücke, die die Simulation
+# stillschweigend als einen einzigen langen "Handelstag" behandeln würde.
+MAX_LUECKE_TAGE = 10
+
+# So viele identische Folgekurse gelten als eingefrorene Reihe.
+MAX_IDENTISCHE_FOLGEKURSE = 5
+
+# Reihe muss so aktuell sein, sonst Hinweis (Ticker eingestellt/umbenannt?).
+MAX_ALTER_TAGE = 10
+
+# Unter diesem Anteil erfolgreich geladener Titel wird index.json NICHT
+# überschrieben – ein yfinance-Ausfall soll den Datenbestand nicht zerstören.
+MIN_ERFOLGSQUOTE = 0.8
 
 EPOCHE = date(1970, 1, 1)
 
@@ -161,7 +181,48 @@ def pruefe_auffaellige(ticker, werte):
     return len(treffer)
 
 
-def schreibe_bin(pfad, werte):
+def pruefe_reihenqualitaet(ticker, werte):
+    """
+    Meldet Lücken, eingefrorene Kurse und ein zu altes Reihenende.
+
+    Anders als `pruefe_auffaellige` geht es hier nicht um einzelne Ausreißer,
+    sondern um die Fälle, die die Simulation still verfälschen: eine
+    Handelspause erscheint dort als ein einziger langer Handelstag, ein
+    eingefrorener Kurs als ein Zeitraum ohne jedes Risiko.
+    """
+    hinweise = []
+
+    luecken = [
+        (werte[i + 1][0], (werte[i + 1][0] - werte[i][0]).days)
+        for i in range(len(werte) - 1)
+        if (werte[i + 1][0] - werte[i][0]).days > MAX_LUECKE_TAGE
+    ]
+    for d, tage in luecken[:3]:
+        hinweise.append(f"Handelspause von {tage} Tagen bis {d}")
+    if len(luecken) > 3:
+        hinweise.append(f"... und {len(luecken) - 3} weitere Lücken")
+
+    lauf, bester_lauf, bis = 1, 1, werte[0][0]
+    for i in range(1, len(werte)):
+        if werte[i][1] == werte[i - 1][1]:
+            lauf += 1
+            if lauf > bester_lauf:
+                bester_lauf, bis = lauf, werte[i][0]
+        else:
+            lauf = 1
+    if bester_lauf >= MAX_IDENTISCHE_FOLGEKURSE:
+        hinweise.append(f"{bester_lauf} identische Folgekurse bis {bis}")
+
+    alter = (date.today() - werte[-1][0]).days
+    if alter > MAX_ALTER_TAGE:
+        hinweise.append(f"Reihe endet bereits am {werte[-1][0]} ({alter} Tage alt)")
+
+    for h in hinweise:
+        print(f"   Hinweis: {ticker} – {h}")
+    return len(hinweise)
+
+
+def baue_bin(werte):
     """
     Binärformat (little-endian):
       'BRK1'                      4 B  Magic
@@ -181,15 +242,31 @@ def schreibe_bin(pfad, werte):
     if offsets[-1] > 65535:
         raise ValueError(f"Zeitraum zu lang für uint16-Offsets: {offsets[-1]} Tage")
 
+    # Die App verlässt sich auf streng aufsteigende Offsets (Binärsuche) –
+    # hier abzubrechen ist billiger, als es dem Codec zu überlassen.
+    if any(offsets[i] <= offsets[i - 1] for i in range(1, anzahl)):
+        raise ValueError("Epochtage nicht streng aufsteigend")
+
     kopf = b"BRK1" + struct.pack("<II", basis, anzahl)
     off_bytes = struct.pack(f"<{anzahl}H", *offsets)
     padding = b"\x00" * ((4 - len(off_bytes) % 4) % 4)
     kurs_bytes = struct.pack(f"<{anzahl}f", *[k for _, k in werte])
 
-    with open(pfad, "wb") as f:
-        f.write(kopf + off_bytes + padding + kurs_bytes)
+    return kopf + off_bytes + padding + kurs_bytes
 
-    return len(kopf) + len(off_bytes) + len(padding) + len(kurs_bytes)
+
+def schreibe_atomar(pfad, daten):
+    """
+    Erst vollständig danebenschreiben, dann umbenennen.
+
+    Ein Abbruch mitten im Schreiben hinterlässt sonst eine abgeschnittene
+    Datei in assets/ – und seit der Codec-Prüfung startet die App damit gar
+    nicht mehr.
+    """
+    tmp = pfad + ".tmp"
+    with open(tmp, "wb") as f:
+        f.write(daten)
+    os.replace(tmp, pfad)
 
 
 def main():
@@ -197,12 +274,14 @@ def main():
     p.add_argument("--out", default="assets/kurse", help="Zielverzeichnis")
     args = p.parse_args()
 
-    import os
     os.makedirs(args.out, exist_ok=True)
 
-    eintraege = []
-    gesamt_bytes = 0
+    # Erst alles einsammeln, dann in einem Rutsch schreiben. Würde jede .bin
+    # sofort landen, hinterließe ein Abbruch nach der Hälfte einen Mischbestand
+    # aus neuen Kursdateien und altem index.json.
+    fertig = []          # (dateiname, bytes, index-eintrag)
     auffaellig_gesamt = 0
+    qualitaet_gesamt = 0
 
     for ticker, name, kategorie, gruppe in AKTIEN_POOL:
         print(f"-> {ticker} ({name}) ...", flush=True)
@@ -222,12 +301,16 @@ def main():
             continue
 
         auffaellig_gesamt += pruefe_auffaellige(ticker, werte)
+        qualitaet_gesamt += pruefe_reihenqualitaet(ticker, werte)
 
         datei = f"{slug(ticker)}.bin"
-        groesse = schreibe_bin(os.path.join(args.out, datei), werte)
-        gesamt_bytes += groesse
+        try:
+            daten = baue_bin(werte)
+        except ValueError as err:
+            print(f"   FEHLER beim Kodieren: {err} – übersprungen.")
+            continue
 
-        eintraege.append({
+        fertig.append((datei, daten, {
             "ticker": ticker,
             "name": name,
             "kategorie": kategorie,
@@ -237,24 +320,43 @@ def main():
             "ersterTag": werte[0][0].isoformat(),
             "letzterTag": werte[-1][0].isoformat(),
             "quelle": "bundled",
-        })
-        print(f"   {len(werte)} Kurse, {werte[0][0]} – {werte[-1][0]}, {groesse/1024:.0f} KB")
+        }))
+        print(f"   {len(werte)} Kurse, {werte[0][0]} – {werte[-1][0]}, "
+              f"{len(daten)/1024:.0f} KB")
+
+    # Abbruch-Guard: ein yfinance-Ausfall darf den vorhandenen Datenbestand
+    # nicht durch ein leeres oder halbes index.json ersetzen. Ohne diese
+    # Prüfung endete der Export auch bei 0 geladenen Titeln mit Exit-Code 0.
+    mindestens = int(len(AKTIEN_POOL) * MIN_ERFOLGSQUOTE)
+    if len(fertig) < mindestens:
+        sys.exit(
+            f"\nABBRUCH: nur {len(fertig)} von {len(AKTIEN_POOL)} Titeln geladen "
+            f"(mindestens {mindestens} nötig). assets/ bleibt unverändert."
+        )
+
+    for datei, daten, _ in fertig:
+        schreibe_atomar(os.path.join(args.out, datei), daten)
 
     index = {
         "schemaVersion": 1,
         "erzeugtAm": date.today().isoformat(),
         "quelle": "yfinance",
         "kursAnpassung": "auto_adjust",
-        "aktien": eintraege,
+        "aktien": [eintrag for _, _, eintrag in fertig],
     }
-    with open(os.path.join(args.out, "index.json"), "w", encoding="utf-8") as f:
-        json.dump(index, f, ensure_ascii=False, indent=2)
+    schreibe_atomar(
+        os.path.join(args.out, "index.json"),
+        json.dumps(index, ensure_ascii=False, indent=2).encode("utf-8"),
+    )
 
-    print(f"\n=== {len(eintraege)} Aktien exportiert, "
-          f"{gesamt_bytes/1024:.0f} KB gesamt ===")
+    gesamt_bytes = sum(len(daten) for _, daten, _ in fertig)
+    print(f"\n=== {len(fertig)} Aktien exportiert, {gesamt_bytes/1024:.0f} KB gesamt ===")
     if auffaellig_gesamt:
         print(f"({auffaellig_gesamt} auffällige Tagesbewegungen – meist echte "
               f"Kursstürze, siehe Hinweise oben.)")
+    if qualitaet_gesamt:
+        print(f"({qualitaet_gesamt} Hinweise zu Lücken/Aktualität – bitte prüfen, "
+              f"bevor die Assets committet werden.)")
 
 
 if __name__ == "__main__":

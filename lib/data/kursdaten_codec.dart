@@ -32,6 +32,13 @@ class KursdatenCodec {
     final basis = daten.getUint32(4, Endian.little);
     final anzahl = daten.getUint32(8, Endian.little);
 
+    // Eine leere Reihe ließe `RennenEngine` sofort über `reihe.kurs(0)`
+    // stolpern – hier abzubrechen benennt die Ursache statt eines RangeError
+    // tief in der Simulation.
+    if (anzahl == 0) {
+      throw const FormatException('Kursdatei enthält keine Kurse.');
+    }
+
     var offset = 12;
     final erwartet = offset + anzahl * 2;
     final padding = (4 - (anzahl * 2) % 4) % 4;
@@ -39,9 +46,20 @@ class KursdatenCodec {
       throw const FormatException('Kursdatei unvollständig.');
     }
 
+    // Streng aufsteigende Epochtage sind die Invariante, auf der
+    // `Kursreihe.binaereSuche` beruht. Ohne Prüfung liefert eine beschädigte
+    // oder halb geschriebene Datei keinen Absturz, sondern still falsche
+    // Kurse – und damit falsche Renditen. Der Durchlauf kostet nichts
+    // Zusätzliches, die Schleife läuft ohnehin.
     final epochTage = Int32List(anzahl);
     for (var i = 0; i < anzahl; i++) {
       epochTage[i] = basis + daten.getUint16(offset + i * 2, Endian.little);
+      if (i > 0 && epochTage[i] <= epochTage[i - 1]) {
+        throw FormatException(
+          'Epochtage nicht streng aufsteigend an Index $i '
+          '(${epochTage[i - 1]} -> ${epochTage[i]}).',
+        );
+      }
     }
 
     offset = erwartet + padding;
@@ -49,7 +67,13 @@ class KursdatenCodec {
     for (var i = 0; i < anzahl; i++) {
       // Explizite Schleife statt Float32List.view: unabhängig von der
       // Byte-Reihenfolge der Plattform und ohne Alignment-Annahmen.
-      kurse[i] = daten.getFloat32(offset + i * 4, Endian.little);
+      final kurs = daten.getFloat32(offset + i * 4, Endian.little);
+      // Ein Kurs <= 0 (oder NaN) würde in der Simulation zu Division durch
+      // null bzw. NaN-Depotwerten führen, die sich lautlos fortpflanzen.
+      if (!(kurs > 0)) {
+        throw FormatException('Unbrauchbarer Kurs $kurs an Index $i.');
+      }
+      kurse[i] = kurs;
     }
 
     return Kursreihe(epochTage, kurse);

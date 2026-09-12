@@ -9,6 +9,7 @@ import '../data/erfolge_repository.dart';
 import '../data/spielverlauf.dart';
 import '../domain/auswertung.dart';
 import '../domain/erfolge.dart';
+import '../domain/inflation.dart';
 import '../domain/kursreihe.dart';
 import '../domain/monte_carlo.dart';
 import '../domain/rennen_engine.dart';
@@ -39,6 +40,7 @@ class ErgebnisScreen extends StatefulWidget {
 class _ErgebnisScreenState extends State<ErgebnisScreen> {
   final _nameController = TextEditingController();
   bool _gespeichert = false;
+  bool _speichertGerade = false;
   Future<MonteCarloErgebnis>? _monteCarlo;
 
   List<ErfolgId> _neuFreigeschaltet = [];
@@ -67,11 +69,25 @@ class _ErgebnisScreenState extends State<ErgebnisScreen> {
           cfg: engine.cfg,
           anzahlTrades: engine.trades.length,
           ersteAktionIstKauf: engine.trades.first.istKauf,
-          tatsaechlicherEndwert: engine.wertSpieler,
+          // Die Zufallsläufe kennen keine Abgeltungsteuer – der Ist-Wert wird
+          // für den Vergleich deshalb entsteuert, sonst fiele das Perzentil
+          // (Sortierschlüssel der Bestenliste) bei aktiver Steuer systematisch
+          // zu niedrig aus. Bei `steuernAktiv: false` ist der Summand 0.
+          tatsaechlicherEndwert: engine.wertSpieler + engine.gezahlteSteuerSpieler,
           laeufe: 1000,
-          seed: DateTime.now().millisecondsSinceEpoch,
+          // Aus dem Rundenzustand statt aus der Uhr: das Perzentil ist der
+          // Sortierschlüssel der Bestenliste und darf für dieselbe Runde nicht
+          // bei jedem Aufruf ein anderes Ergebnis liefern.
+          seed: engine.reihe.ersterTag * 1000003 +
+              engine.reihe.laenge * 10007 +
+              engine.trades.length,
         ),
       );
+      // Sofort einen Fehler-Listener anhängen: die echten Abnehmer
+      // (_protokolliereVerlauf, FutureBuilder) kommen erst später dran, bis
+      // dahin gälte ein Isolate-Fehler als unbehandelt und würde die App-Zone
+      // erreichen. Das Ergebnis selbst holen sich weiterhin die Abnehmer.
+      _monteCarlo!.then((_) {}, onError: (Object _) {});
     }
     _protokolliereVerlauf();
   }
@@ -82,11 +98,26 @@ class _ErgebnisScreenState extends State<ErgebnisScreen> {
     super.dispose();
   }
 
+  /// Wartet auf die Monte-Carlo-Rechnung, ohne bei einem Fehler im Isolate
+  /// den Aufrufer mitzureißen – `null` heißt dann schlicht „kein Perzentil".
+  Future<MonteCarloErgebnis?> _monteCarloErgebnis() async {
+    if (_monteCarlo == null) return null;
+    try {
+      return await _monteCarlo;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Schreibt diese Runde unabhängig von der Bestenliste ins rundenübergreifende
   /// Spielprotokoll (V11) – Grundlage für das Verhaltensprofil und die Erfolge.
+  ///
+  /// Der Eintrag entsteht **vor** der Monte-Carlo-Rechnung und bekommt sein
+  /// Perzentil erst danach nachgetragen. Vorher hing beides am selben `await`:
+  /// warf das Isolate, wurde die Runde weder protokolliert noch auf Erfolge
+  /// geprüft.
   Future<void> _protokolliereVerlauf() async {
     final e = widget.engine;
-    final ergebnis = _monteCarlo == null ? null : await _monteCarlo;
     final gesamtTage = auswertung.tageInvestiert + auswertung.tageAussen;
     final eintrag = SpielverlaufEintrag(
       erstelltAm: DateTime.now().toUtc(),
@@ -97,7 +128,7 @@ class _ErgebnisScreenState extends State<ErgebnisScreen> {
       anzahlKaeufe: auswertung.anzahlKaeufe,
       anzahlVerkaeufe: auswertung.anzahlVerkaeufe,
       anteilInvestierterTage: gesamtTage == 0 ? 0 : auswertung.tageInvestiert / gesamtTage,
-      perzentil: ergebnis?.perzentil,
+      perzentil: null, // wird unten nachgetragen, sobald das Isolate fertig ist
       scoreVsInvestor: Score.vsInvestor(e.wertSpieler, e.wertInvestor),
       marktRenditeRunde: e.reihe.kurs(e.i) / e.reihe.kurs(0) - 1,
       abstandVerkaufZuTiefTage: auswertung.abstandVerkaufZuTiefTage,
@@ -107,6 +138,13 @@ class _ErgebnisScreenState extends State<ErgebnisScreen> {
     if (!mounted) return;
     final verlaufRepo = context.read<SpielverlaufRepository>();
     await verlaufRepo.hinzufuegen(eintrag);
+
+    // Ab hier ist die Runde sicher protokolliert. Das Perzentil darf nun
+    // fehlschlagen, ohne den Eintrag mitzunehmen; „Der Glückliche" bleibt in
+    // dem Fall schlicht verschlossen – das ist die konservative Richtung.
+    final perzentil = (await _monteCarloErgebnis())?.perzentil;
+    if (!mounted) return;
+    await verlaufRepo.ergaenzePerzentilDesLetzten(perzentil);
     if (!mounted) return;
 
     final verlauf = verlaufRepo.eintraege;
@@ -116,7 +154,7 @@ class _ErgebnisScreenState extends State<ErgebnisScreen> {
           rundenjahre: eintrag.rundenjahre,
           anzahlVerkaeufe: eintrag.anzahlVerkaeufe,
           scoreVsInvestor: eintrag.scoreVsInvestor,
-          perzentil: eintrag.perzentil,
+          perzentil: perzentil,
           startDatenAllerRunden: verlauf.map((v) => v.startDatum).toList(),
           marktRenditenAllerRunden: verlauf.map((v) => v.marktRenditeRunde).toList(),
           anzahlRundenGesamt: verlauf.length,
@@ -137,15 +175,23 @@ class _ErgebnisScreenState extends State<ErgebnisScreen> {
   }
 
   Future<void> _eintragen() async {
+    // Zwischen Tap und gesetztem `_gespeichert` liegen zwei `await` – ohne
+    // diesen Riegel erzeugen zwei schnelle Taps zwei identische Einträge.
+    if (_speichertGerade || _gespeichert) return;
+    setState(() => _speichertGerade = true);
+
     final e = widget.engine;
-    final ergebnis = _monteCarlo == null ? null : await _monteCarlo;
+    final ergebnis = await _monteCarloErgebnis();
     if (!mounted) return;
     final eintrag = BestenlisteEintrag(
       spielername: _nameController.text.trim().isEmpty ? 'Anonym' : _nameController.text.trim(),
       ticker: widget.aktie.ticker,
       aktieName: widget.aktie.name,
       startDatum: Kursreihe.zuDatum(e.reihe.ersterTag),
-      endDatum: Kursreihe.zuDatum(e.reihe.letzterTag),
+      // Der zuletzt simulierte Tag, nicht das Ende des gezogenen Ausschnitts:
+      // eine über „Runde beenden" vorzeitig abgebrochene Runde stünde sonst
+      // mit einem Zeitraum in der Bestenliste, den niemand gespielt hat.
+      endDatum: Kursreihe.zuDatum(e.reihe.epochTag(e.i)),
       endbetragSpieler: e.wertSpieler,
       endbetragInvestor: e.wertInvestor,
       endbetragSicherheit: e.wertSicherheit,
@@ -156,8 +202,14 @@ class _ErgebnisScreenState extends State<ErgebnisScreen> {
       endbetragWuerfel: e.wuerfelAktiv ? e.wertWuerfel : null,
       perzentil: ergebnis?.perzentil,
     );
-    await context.read<BestenlisteRepository>().hinzufuegen(eintrag);
-    if (mounted) setState(() => _gespeichert = true);
+    try {
+      await context.read<BestenlisteRepository>().hinzufuegen(eintrag);
+      if (mounted) setState(() => _gespeichert = true);
+    } finally {
+      // Auch bei einem Schreibfehler wieder freigeben – sonst bliebe der
+      // Knopf sichtbar, aber für immer wirkungslos.
+      if (mounted) setState(() => _speichertGerade = false);
+    }
   }
 
   @override
@@ -221,22 +273,37 @@ class _ErgebnisScreenState extends State<ErgebnisScreen> {
               ),
               const SizedBox(height: 16),
 
+              // Die Kaufkraft-Zeilen hängen alle an `kaufkraftIstBelastbar`:
+              // reicht die Inflationstabelle nicht über den ganzen Zeitraum,
+              // stünde dort sonst eine zu niedrige Teuerung – im Extremfall
+              // „0 %" – als Tatsachenbehauptung, obwohl nur Daten fehlen.
               _zeile('Dein Depot', _euro.format(e.wertSpieler), ArcadeFarben.spielerDunkel, fett: true),
-              _kaufkraftZeile(auswertung.endwertSpielerReal),
+              if (auswertung.kaufkraftIstBelastbar)
+                _kaufkraftZeile(auswertung.endwertSpielerReal),
               _zeile('Investor', _euro.format(e.wertInvestor), ArcadeFarben.investorDunkel),
-              _kaufkraftZeile(auswertung.endwertInvestorReal),
+              if (auswertung.kaufkraftIstBelastbar)
+                _kaufkraftZeile(auswertung.endwertInvestorReal),
               _zeile('Sicherheit (${e.cfg.zinssatz.toStringAsFixed(2)} %)',
                   _euro.format(e.wertSicherheit), ArcadeFarben.sicherheitDunkel),
-              _kaufkraftZeile(auswertung.endwertSicherheitReal,
-                  hervorheben: auswertung.sicherheitRealUnterEinzahlungen),
+              if (auswertung.kaufkraftIstBelastbar)
+                _kaufkraftZeile(auswertung.endwertSicherheitReal,
+                    hervorheben: auswertung.sicherheitRealUnterEinzahlungen),
               if (e.wuerfelAktiv)
                 _zeile('Würfel-Investor', _euro.format(e.wertWuerfel!), ArcadeFarben.wuerfelDunkel),
               const SizedBox(height: 4),
-              Text(
-                'In diesem Zeitraum verlor der Euro '
-                '${(100 * (1 - 1 / auswertung.preisfaktorGesamt)).toStringAsFixed(0)} % seiner Kaufkraft.',
-                style: const TextStyle(fontSize: 11, color: ArcadeFarben.tinteHell),
-              ),
+              if (auswertung.kaufkraftIstBelastbar)
+                Text(
+                  'In diesem Zeitraum verlor der Euro '
+                  '${(100 * (1 - 1 / auswertung.preisfaktorGesamt)).toStringAsFixed(0)} % seiner Kaufkraft.',
+                  style: const TextStyle(fontSize: 11, color: ArcadeFarben.tinteHell),
+                )
+              else
+                Text(
+                  'Für diesen Zeitraum liegen noch nicht für alle Jahre '
+                  'Teuerungsraten vor (Tabelle bis ${Inflation.letztesJahr}) – '
+                  'die reale Kaufkraft bleibt deshalb ausgeblendet.',
+                  style: const TextStyle(fontSize: 11, color: ArcadeFarben.tinteHell),
+                ),
               if (auswertung.sicherheitRealUnterEinzahlungen) ...[
                 const SizedBox(height: 4),
                 Container(
@@ -387,6 +454,14 @@ class _ErgebnisScreenState extends State<ErgebnisScreen> {
                 FutureBuilder<MonteCarloErgebnis>(
                   future: _monteCarlo,
                   builder: (context, snapshot) {
+                    if (snapshot.hasError) {
+                      // Ohne diesen Zweig drehte sich der Ladekringel ewig
+                      // weiter, wenn das Isolate fehlschlug.
+                      return const Text(
+                        'Die Timing-Einordnung konnte nicht berechnet werden.',
+                        style: TextStyle(fontSize: 12, color: ArcadeFarben.tinteHell),
+                      );
+                    }
                     final ergebnis = snapshot.data;
                     if (ergebnis == null) {
                       return const Padding(
@@ -465,9 +540,14 @@ class _ErgebnisScreenState extends State<ErgebnisScreen> {
                   const SizedBox(height: 6),
                   _zeile('Lücke in Euro', _euro.format(auswertung.behaviorGapEuro!.abs()),
                       ArcadeFarben.verkaufenSchatten),
-                  _zeile('Entspricht Monatseinzahlungen',
-                      '${auswertung.behaviorGapInMonatsEinzahlungen!.abs()}',
-                      ArcadeFarben.verkaufenSchatten),
+                  // Eigene Bedingung: der Zähler ist auch dann null, wenn die
+                  // Lücke selbst bestimmbar ist – nämlich bei
+                  // `monatsEinzahlung == 0`. Am `behaviorGapEuro` aufgehängt
+                  // wäre das ein Null-Check-Absturz.
+                  if (auswertung.behaviorGapInMonatsEinzahlungen != null)
+                    _zeile('Entspricht Monatseinzahlungen',
+                        '${auswertung.behaviorGapInMonatsEinzahlungen!.abs()}',
+                        ArcadeFarben.verkaufenSchatten),
                 ],
               ],
 

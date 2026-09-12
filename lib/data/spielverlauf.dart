@@ -55,6 +55,26 @@ class SpielverlaufEintrag {
     required this.anteilVerkaeufeNachCrash,
   });
 
+  /// Kopie mit nachgetragenem Perzentil – die Runde wird protokolliert, bevor
+  /// die Monte-Carlo-Rechnung fertig ist (siehe
+  /// [SpielverlaufRepository.ergaenzePerzentilDesLetzten]).
+  SpielverlaufEintrag mitPerzentil(double? neuesPerzentil) => SpielverlaufEintrag(
+        erstelltAm: erstelltAm,
+        startDatum: startDatum,
+        ticker: ticker,
+        gruppe: gruppe,
+        rundenjahre: rundenjahre,
+        anzahlKaeufe: anzahlKaeufe,
+        anzahlVerkaeufe: anzahlVerkaeufe,
+        anteilInvestierterTage: anteilInvestierterTage,
+        perzentil: neuesPerzentil,
+        scoreVsInvestor: scoreVsInvestor,
+        marktRenditeRunde: marktRenditeRunde,
+        abstandVerkaufZuTiefTage: abstandVerkaufZuTiefTage,
+        abstandKaufZuHochTage: abstandKaufZuHochTage,
+        anteilVerkaeufeNachCrash: anteilVerkaeufeNachCrash,
+      );
+
   Map<String, dynamic> zuJson() => {
         'erstelltAm': erstelltAm.toIso8601String(),
         'startDatum': startDatum.toIso8601String(),
@@ -131,6 +151,22 @@ class SpielverlaufRepository extends ChangeNotifier {
     if (_eintraege.length > maxEintraege) {
       _eintraege = _eintraege.sublist(_eintraege.length - maxEintraege);
     }
+    await _speichern();
+  }
+
+  /// Trägt das Monte-Carlo-Perzentil am zuletzt hinzugefügten Eintrag nach.
+  ///
+  /// Die Runde wird bewusst **sofort** protokolliert, bevor das Perzentil
+  /// vorliegt: hing das Protokollieren am Isolate, kostete ein dort geworfener
+  /// Fehler den kompletten Eintrag samt Erfolgsauswertung. Tut nichts, wenn
+  /// [perzentil] `null` ist oder noch kein Eintrag existiert.
+  Future<void> ergaenzePerzentilDesLetzten(double? perzentil) async {
+    if (perzentil == null || _eintraege.isEmpty) return;
+    _eintraege[_eintraege.length - 1] = _eintraege.last.mitPerzentil(perzentil);
+    await _speichern();
+  }
+
+  Future<void> _speichern() async {
     await _prefs.setString(
       _schluessel,
       jsonEncode(_eintraege.map((e) => e.zuJson()).toList()),

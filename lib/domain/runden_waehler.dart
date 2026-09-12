@@ -23,9 +23,6 @@ class RundenAuswahl {
 /// Reines Dart – kein Flutter. [Random] wird injiziert, damit Tests
 /// mit festem Seed reproduzierbar sind.
 class RundenWaehler {
-  /// So weit muss der Startzeitpunkt mindestens zurückliegen.
-  static const int minJahreZurueck = 10;
-
   /// Eine Runde braucht mindestens so viele Handelstage.
   static const int minHandelstage = 250;
 
@@ -47,8 +44,9 @@ class RundenWaehler {
 
     final von = reihe.binaereSuche(startTag);
     final zielEnde = reihe.epochTag(von) + (rundenJahre * 365.25).round();
-    var bis = reihe.binaereSuche(zielEnde);
-    if (bis > reihe.laenge) bis = reihe.laenge;
+    // binaereSuche liefert höchstens laenge – ein zusätzliches Deckeln wäre
+    // toter Code.
+    final bis = reihe.binaereSuche(zielEnde);
     if (bis - von < minHandelstage) return null;
 
     final vorlaufStartTag = reihe.epochTag(von) - 365;

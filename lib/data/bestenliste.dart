@@ -143,10 +143,4 @@ class BestenlisteRepository extends ChangeNotifier {
     );
     notifyListeners();
   }
-
-  /// Platz (1-basiert) eines Eintrags, oder null.
-  int? platzVon(BestenlisteEintrag eintrag) {
-    final i = _eintraege.indexOf(eintrag);
-    return i < 0 ? null : i + 1;
-  }
 }

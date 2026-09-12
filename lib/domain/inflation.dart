@@ -49,31 +49,66 @@ const Map<int, double> _jahresteuerungDE = {
   2024: 2.228,
 };
 
+/// Ergebnis von [Inflation.preisfaktorMitAbdeckung].
+class Preisfaktor {
+  /// Kumulierter Faktor über den abgedeckten Teil des Zeitraums.
+  final double faktor;
+
+  /// Anteil der Tage des Zeitraums, für die eine Teuerungsrate vorlag (0..1).
+  /// Jahre ohne Eintrag tragen Faktor 1.0 bei – ohne diesen Wert wäre nicht
+  /// unterscheidbar, ob der Euro seine Kaufkraft tatsächlich behalten hat oder
+  /// ob schlicht die Daten fehlen. Genau das ist der Normalfall: die Tabelle
+  /// endet bei [Inflation.letztesJahr], die Kursdaten reichen weiter.
+  final double abdeckung;
+
+  const Preisfaktor(this.faktor, this.abdeckung);
+
+  /// Ab dieser Abdeckung gilt die Kaufkraft-Aussage als belastbar genug, um
+  /// sie überhaupt anzuzeigen.
+  static const double mindestAbdeckung = 0.95;
+
+  bool get istBelastbar => abdeckung >= mindestAbdeckung;
+}
+
 /// Umrechnung nominaler Endbeträge in reale Kaufkraft. Reines Dart.
 class Inflation {
   static double? rateFuer(int jahr) => _jahresteuerungDE[jahr];
 
-  /// Taggenau interpolierter Kaufkraft-Faktor zwischen zwei Epochtagen.
+  /// Frühestes und spätestes Jahr der Tabelle – damit Hinweise und Tests nicht
+  /// auf feste Jahreszahlen festgenagelt sind.
+  static int get erstesJahr => _jahresteuerungDE.keys.reduce(math.min);
+  static int get letztesJahr => _jahresteuerungDE.keys.reduce(math.max);
+
+  /// Taggenau interpolierter Kaufkraft-Faktor zwischen zwei Epochtagen, plus
+  /// dem Anteil des Zeitraums, für den überhaupt Daten vorlagen.
+  ///
   /// Jahre ohne Datenabdeckung tragen Faktor 1.0 bei (still übersprungen,
-  /// keine Exception) – ein Zeitraum ganz außerhalb der Tabelle liefert
-  /// dadurch 1.0 statt eines Fehlers.
-  static double preisfaktor(int vonEpochTag, int bisEpochTag) {
-    if (bisEpochTag <= vonEpochTag) return 1.0;
+  /// keine Exception) – sie senken aber [Preisfaktor.abdeckung], damit der
+  /// Aufrufer eine unvollständige Aussage von einer echten Nullteuerung
+  /// unterscheiden kann.
+  static Preisfaktor preisfaktorMitAbdeckung(int vonEpochTag, int bisEpochTag) {
+    if (bisEpochTag <= vonEpochTag) return const Preisfaktor(1.0, 1.0);
     var faktor = 1.0;
+    var abgedeckteTage = 0;
     var tag = vonEpochTag;
     while (tag < bisEpochTag) {
       final jahr = Kursreihe.zuDatum(tag).year;
       final jahresStart = Kursreihe.zuEpochTag(DateTime.utc(jahr, 1, 1));
       final jahresEnde = Kursreihe.zuEpochTag(DateTime.utc(jahr + 1, 1, 1));
       final abschnittEnde = math.min(jahresEnde, bisEpochTag);
+      final tageImAbschnitt = abschnittEnde - tag;
       final rate = _jahresteuerungDE[jahr];
       if (rate != null) {
         final tageImJahr = jahresEnde - jahresStart;
-        final tageImAbschnitt = abschnittEnde - tag;
         faktor *= math.pow(1 + rate / 100, tageImAbschnitt / tageImJahr).toDouble();
+        abgedeckteTage += tageImAbschnitt;
       }
       tag = abschnittEnde;
     }
-    return faktor;
+    return Preisfaktor(faktor, abgedeckteTage / (bisEpochTag - vonEpochTag));
   }
+
+  /// Nur der Faktor – für Aufrufer, denen die Vollständigkeit egal ist.
+  static double preisfaktor(int vonEpochTag, int bisEpochTag) =>
+      preisfaktorMitAbdeckung(vonEpochTag, bisEpochTag).faktor;
 }

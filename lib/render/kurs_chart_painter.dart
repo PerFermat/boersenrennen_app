@@ -48,18 +48,38 @@ class KursChartPainter extends CustomPainter {
 
   Color _farbe(bool investiert) => investiert ? ArcadeFarben.kaufen : ArcadeFarben.verkaufen;
 
+  /// Laufendes Minimum/Maximum über den bisher gezeigten Verlauf, plus der
+  /// Index, bis zu dem es gilt.
+  ///
+  /// Das Fenster wächst nur – es fällt nie ein Kurs hinten heraus. Damit
+  /// genügt es, pro Frame die seit dem letzten Frame hinzugekommenen Tage
+  /// nachzuziehen, statt bei 20-Jahres-Runden 60-mal pro Sekunde über ~5300
+  /// Punkte zu laufen.
+  double _min = double.infinity;
+  double _max = double.negativeInfinity;
+  int _skalaBis = -1;
+
   @override
   void paint(Canvas canvas, Size size) {
     final bis = vorlauf.laenge + engine.i;
     if (bis < 1) return;
 
     // Sichtbarer y-Bereich aus dem bisherigen Verlauf (Vorlauf + Runde).
-    var min = double.infinity, max = -double.infinity;
-    for (var i = 0; i <= bis; i++) {
-      final k = _kurs(i);
-      if (k < min) min = k;
-      if (k > max) max = k;
+    if (bis < _skalaBis) {
+      // Neue Runde auf demselben Painter (sollte nicht vorkommen) – lieber
+      // neu aufbauen als mit einer zu weiten Skala weiterzeichnen.
+      _min = double.infinity;
+      _max = double.negativeInfinity;
+      _skalaBis = -1;
     }
+    for (var i = _skalaBis + 1; i <= bis; i++) {
+      final k = _kurs(i);
+      if (k < _min) _min = k;
+      if (k > _max) _max = k;
+    }
+    _skalaBis = bis;
+
+    var min = _min, max = _max;
     if (max - min < 1e-9) {
       min -= 1;
       max += 1;

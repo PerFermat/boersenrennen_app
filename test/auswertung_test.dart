@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:boersenrennen_app/domain/auswertung.dart';
+import 'package:boersenrennen_app/domain/inflation.dart';
 import 'package:boersenrennen_app/domain/kursreihe.dart';
 import 'package:boersenrennen_app/domain/rennen_engine.dart';
 import 'package:boersenrennen_app/domain/spiel_konfiguration.dart';
@@ -668,6 +669,265 @@ void main() {
       final a = RundenAuswertung.aus(e);
 
       expect(a.anteilVerkaeufeNachCrash, closeTo(0.0, 1e-9));
+    });
+  });
+
+  group('Kaufkraft und Nullteiler (P5)', () {
+    test('ohne Monatseinzahlung ist die Behavior Gap bestimmbar, der Zähler aber null',
+        () {
+      // Genau die Kombination, an der der Ergebnis-Screen mit einem
+      // Null-Check-Absturz gescheitert wäre: die Lücke in Euro existiert,
+      // "entspricht X Monatseinzahlungen" kann es bei 0 € nicht geben.
+      final reihe = baueReihe(start: start, kalenderTage: 365 * 3, kursFuer: (t) => 40 + 60 * t);
+      final e = RennenEngine(
+        reihe,
+        const SpielKonfiguration(zinssatz: 0.0, monatsEinzahlung: 0.0),
+      );
+      e.kaufen();
+      while (!e.fertig) {
+        e.schritt();
+      }
+      final a = RundenAuswertung.aus(e);
+
+      expect(a.behaviorGapEuro, isNotNull);
+      expect(a.behaviorGapInMonatsEinzahlungen, isNull);
+      expect(a.differenzInMonatsEinzahlungen, 0);
+    });
+
+    test('ein Zeitraum ohne Teuerungsdaten liefert keine Kaufkraft-Aussage', () {
+      // Runde vollständig vor Beginn der Destatis-Reihe.
+      final reihe = baueReihe(
+        start: DateTime.utc(Inflation.erstesJahr - 6, 1, 1),
+        kalenderTage: 365 * 3,
+        kursFuer: (t) => 100 + 50 * t,
+      );
+      final e = RennenEngine(reihe, const SpielKonfiguration(zinssatz: 0.0));
+      while (!e.fertig) {
+        e.schritt();
+      }
+      final a = RundenAuswertung.aus(e);
+
+      expect(a.kaufkraftIstBelastbar, isFalse);
+      // Ohne belastbare Kaufkraft darf auch der Kernsatz nicht behauptet werden.
+      expect(a.sicherheitRealUnterEinzahlungen, isFalse);
+    });
+
+    test('in einem abgedeckten Zeitraum ist die Kaufkraft-Aussage belastbar', () {
+      final reihe = baueReihe(start: start, kalenderTage: 365 * 5, kursFuer: (t) => 100 + 50 * t);
+      final e = RennenEngine(reihe, const SpielKonfiguration(zinssatz: 3.0));
+      while (!e.fertig) {
+        e.schritt();
+      }
+      final a = RundenAuswertung.aus(e);
+
+      expect(a.kaufkraftIstBelastbar, isTrue);
+      expect(a.preisfaktorGesamt, greaterThan(1.0));
+      expect(a.endwertSicherheitReal, lessThan(a.endwertSicherheit));
+    });
+
+    test('die Einzahlungssumme wird auf Preise des Rundenbeginns abgezinst', () {
+      // Über verschiedene Zinssätze hinweg werden zwei Eigenschaften geprüft:
+      //  1. Die neue Bedingung ist strenger als die alte (abgezinst < nominal),
+      //     urteilt also nie großzügiger.
+      //  2. Es gibt mindestens einen Zinssatz, bei dem beide unterschiedlich
+      //     urteilen – sonst wäre die Änderung wirkungslos.
+      final reihe = baueReihe(start: start, kalenderTage: 365 * 10, kursFuer: (_) => 100.0);
+      var urteileWeichenAb = false;
+
+      for (var zins = 0.0; zins <= 5.0; zins += 0.25) {
+        final e = RennenEngine(reihe, SpielKonfiguration(zinssatz: zins));
+        while (!e.fertig) {
+          e.schritt();
+        }
+        final a = RundenAuswertung.aus(e);
+        expect(a.kaufkraftIstBelastbar, isTrue);
+
+        final nominalEingezahlt = e.cfg.startCash + e.cfg.monatsEinzahlung * e.einzahlungen;
+        final altesUrteil = a.endwertSicherheitReal < nominalEingezahlt;
+
+        if (a.sicherheitRealUnterEinzahlungen) {
+          expect(altesUrteil, isTrue,
+              reason: 'die strengere Bedingung muss die alte implizieren (Zins $zins)');
+        }
+        if (altesUrteil != a.sicherheitRealUnterEinzahlungen) urteileWeichenAb = true;
+      }
+
+      expect(urteileWeichenAb, isTrue,
+          reason: 'ohne einen abweichenden Fall wäre die Abzinsung folgenlos');
+    });
+  });
+
+  group('Steuer-Symmetrie (P2)', () {
+    /// Kurs verdoppelt sich in der Mitte; der Spieler kauft zu Beginn.
+    RennenEngine baueGewinnRunde({required bool steuernAktiv, required bool verkauftAmEnde}) {
+      final kurse = List<double>.generate(28, (d) => d < 14 ? 100.0 : 200.0);
+      final reihe = baueDichteReihe(DateTime.utc(2010, 2, 1), kurse);
+      final e = RennenEngine(
+        reihe,
+        SpielKonfiguration(
+          zinssatz: 0.0,
+          steuernAktiv: steuernAktiv,
+          // Ohne Freibetrag, sonst schluckt er den ganzen Gewinn dieser
+          // kleinen Beispielrunde.
+          sparerpauschbetrag: 0.0,
+        ),
+      );
+      e.kaufen();
+      while (!e.fertig) {
+        // Am vorletzten Tag verkaufen – nach `fertig` wäre verkaufen() ein No-op.
+        if (verkauftAmEnde && e.i == reihe.laenge - 2) e.verkaufen();
+        e.schritt();
+      }
+      return e;
+    }
+
+    test('bei deaktivierter Steuer bleibt der teuerste Klick unverändert', () {
+      final e = baueGewinnRunde(steuernAktiv: false, verkauftAmEnde: false);
+      final a = RundenAuswertung.aus(e);
+
+      // gezahlteSteuerSpieler ist 0 -> Vergleichsbasis == Endwert.
+      expect(e.gezahlteSteuerSpieler, 0.0);
+      expect(a.teuersterKlick!.kosten,
+          closeTo(a.teuersterKlick!.endstandOhneKlick - a.endwertSpieler, 1e-9));
+      expect(a.steuerNachteilGegenInvestor, 0.0);
+    });
+
+    test('ein realisierter Gewinn verzerrt die Kosten des teuersten Klicks nicht', () {
+      final e = baueGewinnRunde(steuernAktiv: true, verkauftAmEnde: true);
+      final ohneSteuer = RundenAuswertung.aus(
+          baueGewinnRunde(steuernAktiv: false, verkauftAmEnde: true));
+      final mitSteuer = RundenAuswertung.aus(e);
+
+      expect(e.gezahlteSteuerSpieler, greaterThan(0.0));
+      // Der Vergleichslauf ist in beiden Fällen derselbe steuerfreie Pfad. Weil
+      // der Ist-Wert entsteuert wird, müssen die Kosten exakt übereinstimmen –
+      // vor dem Fix lagen sie um die gezahlte Steuer auseinander und ließen
+      // jede Entscheidung teurer erscheinen, als sie war.
+      expect(mitSteuer.teuersterKlick!.kosten,
+          closeTo(ohneSteuer.teuersterKlick!.kosten, 1e-9));
+      expect(mitSteuer.teuersterKlick!.trade.istKauf,
+          ohneSteuer.teuersterKlick!.trade.istKauf);
+    });
+
+    test('ein investiert endender Spieler hat keinen Steuervorteil gegenüber dem Investor',
+        () {
+      final e = baueGewinnRunde(steuernAktiv: true, verkauftAmEnde: false);
+      final a = RundenAuswertung.aus(e);
+
+      // Nie verkauft -> keine gezahlte Steuer, aber dieselbe latente Last wie
+      // der Investor. Der Nachteil muss ungefähr 0 sein, nicht stark negativ.
+      expect(e.gezahlteSteuerSpieler, 0.0);
+      expect(e.latenteSteuerSpieler, greaterThan(0.0));
+      expect(a.steuerNachteilGegenInvestor.abs(),
+          lessThan(e.latenteSteuerInvestor * 0.1));
+    });
+
+    test('nach einem Verkauf gibt es keine latente Last mehr, nur noch gezahlte', () {
+      final e = baueGewinnRunde(steuernAktiv: true, verkauftAmEnde: true);
+
+      expect(e.gezahlteSteuerSpieler, greaterThan(0.0));
+      expect(e.latenteSteuerSpieler, 0.0);
+    });
+  });
+
+  group('Mehrere Aktionen am selben Handelstag (P1)', () {
+    // Regression: `simuliereSpielerpfad` konsumierte pro Tag nur eine Aktion.
+    // Blieb eine zweite liegen, stand der Listenkopf danach dauerhaft auf einem
+    // vergangenen Tag – ab da wurde jede weitere Aktion still verworfen.
+    test('Kauf und Verkauf am selben Tag kosten exakt zweimal Slippage', () {
+      final kurse = List<double>.generate(20, (d) => 100.0);
+      final reihe = baueDichteReihe(DateTime.utc(2010, 2, 1), kurse);
+      const cfg = SpielKonfiguration(zinssatz: 0.0);
+
+      final ergebnis = simuliereSpielerpfad(
+        reihe: reihe,
+        cfg: cfg,
+        aktionen: const [GeplanteAktion(5, true), GeplanteAktion(5, false)],
+      );
+
+      // 1000 € -> Kauf zu 100*1,005 -> Verkauf zu 100*0,995.
+      expect(ergebnis.stueck, closeTo(0.0, 1e-12));
+      expect(ergebnis.endwert(100.0), closeTo(1000.0 * 0.995 / 1.005, 1e-9));
+    });
+
+    test('nach einer Doppelaktion greifen spätere Aktionen weiterhin', () {
+      // Flach bei 100, ab Tag 15 Sprung auf 200.
+      final kurse = List<double>.generate(20, (d) => d < 15 ? 100.0 : 200.0);
+      final reihe = baueDichteReihe(DateTime.utc(2010, 2, 1), kurse);
+      const cfg = SpielKonfiguration(zinssatz: 0.0);
+
+      final mitDoppelaktion = simuliereSpielerpfad(
+        reihe: reihe,
+        cfg: cfg,
+        aktionen: const [
+          GeplanteAktion(5, true),
+          GeplanteAktion(5, false),
+          GeplanteAktion(10, true), // muss den Sprung auf 200 noch mitnehmen
+        ],
+      ).endwert(200.0);
+
+      // 1000 € -> Kauf@5 zu 100,50 -> Verkauf@5 zu 99,50 -> 990,0498 € Cash
+      // -> Kauf@10 zu 100,50 -> 9,851241 Stück -> 1970,2483 € bei Kurs 200.
+      expect(mitDoppelaktion, closeTo(1970.2482614, 1e-6));
+
+      // Vor dem Fix blieb der Listenkopf auf Tag 5 stehen: der Verkauf fiel
+      // weg, der Kauf an Tag 10 ebenfalls, und der Lauf blieb ab Tag 5
+      // durchgehend investiert – das ergäbe 1990,0498 €.
+      expect(mitDoppelaktion, lessThan(1985.0));
+    });
+
+    test('ein Trade-Paar am selben Tag verfälscht den teuersten Klick nicht', () {
+      final kurse = List<double>.generate(28, (d) => d < 14 ? 100.0 : 200.0);
+      final reihe = baueDichteReihe(DateTime.utc(2010, 2, 1), kurse);
+      const cfg = SpielKonfiguration(zinssatz: 0.0);
+      // Kauf und Verkauf an Tag 2, danach der eigentliche Einstieg an Tag 5.
+      final trades = [baueTrade(2, true), baueTrade(2, false), baueTrade(5, true)];
+
+      // Ohne den dritten Trade fehlt der Einstieg vor der Verdopplung.
+      final ohneEinstieg = simuliereOhneTrade(reihe, cfg, trades, 2);
+      final mitAllen = simuliereSpielerpfad(
+        reihe: reihe,
+        cfg: cfg,
+        aktionen: [for (final t in trades) GeplanteAktion(t.tagIndex, t.istKauf)],
+      ).endwert(200.0);
+
+      expect(ohneEinstieg, lessThan(mitAllen));
+      expect(ohneEinstieg, closeTo(1000.0 * 0.995 / 1.005, 1e-9));
+    });
+  });
+
+  group('Referenz „ohne die besten/schlechtesten Tage" (P1)', () {
+    // Tag 3 und Tag 4 bringen je +50 %. Beide auszulassen heißt: ab Ende Tag 2
+    // draußen bleiben und erst an Tag 4 wieder einsteigen. Die frühere
+    // Kauf-/Verkaufspaar-Konstruktion erzeugte dafür zwei Aktionen auf Tag 3
+    // und ließ den Rest der Liste verhungern.
+    test('zwei aufeinanderfolgende Ausschlusstage werden beide übersprungen', () {
+      final kurse = <double>[100, 100, 100, 150, 225, 225, 225, 225];
+      final reihe = baueDichteReihe(DateTime.utc(2010, 2, 1), kurse);
+      final e = RennenEngine(reihe, const SpielKonfiguration(zinssatz: 0.0));
+      e.kaufen();
+      while (!e.fertig) {
+        e.schritt();
+      }
+      final a = RundenAuswertung.aus(e);
+
+      // Buy-and-Hold verdoppelt sich auf 2250 €; ohne die beiden besten Tage
+      // bleibt exakt das Startkapital übrig.
+      expect(a.endwertImmerInvestiert, closeTo(2250.0, 1e-9));
+      expect(a.endwertOhneBesteFuenfTage, closeTo(1000.0, 1e-9));
+    });
+
+    test('ein Ausschluss von Tag 1 verhindert den Anfangskauf', () {
+      final kurse = <double>[100, 200, 200, 200, 200, 200];
+      final reihe = baueDichteReihe(DateTime.utc(2010, 2, 1), kurse);
+      final e = RennenEngine(reihe, const SpielKonfiguration(zinssatz: 0.0));
+      e.kaufen();
+      while (!e.fertig) {
+        e.schritt();
+      }
+      final a = RundenAuswertung.aus(e);
+
+      expect(a.endwertOhneBesteFuenfTage, closeTo(1000.0, 1e-9));
     });
   });
 }

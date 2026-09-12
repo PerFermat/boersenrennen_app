@@ -51,13 +51,26 @@ class KursdatenRepository {
   ///
   /// Ist [gruppe] gesetzt (z. B. "Welt-ETF"), wird nur innerhalb dieser
   /// Gruppe gewählt. `null` bedeutet "alle Gruppen gemeinsam" (Standard).
-  AktienEintrag zufall(List<AktienEintrag> katalog, Random random,
+  ///
+  /// Liefert `null`, wenn die Kombination aus [gruppe] und [minJahre] keinen
+  /// Titel zulässt – bewusst **kein** stiller Rückfall mehr auf einen zu
+  /// kurzen Titel: der scheiterte anschließend in `RundenWaehler.waehle` und
+  /// ließ den Aufrufer ohne erkennbare Ursache im Leeren stehen. Beispiel:
+  /// "Welt-ETF" mit 20 Jahren – der älteste Welt-ETF im Pool startet 2007.
+  AktienEintrag? zufall(List<AktienEintrag> katalog, Random random,
       {double minJahre = 10, String? gruppe}) {
-    final passendeGruppe =
-        gruppe == null ? katalog : katalog.where((a) => a.gruppe == gruppe).toList();
-    final basis = passendeGruppe.isEmpty ? katalog : passendeGruppe;
-    final geeignet = basis.where((a) => a.spanneJahre >= minJahre).toList();
-    final quelle = geeignet.isEmpty ? basis : geeignet;
-    return quelle[random.nextInt(quelle.length)];
+    final geeignet = katalog
+        .where((a) => (gruppe == null || a.gruppe == gruppe) && a.spanneJahre >= minJahre)
+        .toList();
+    if (geeignet.isEmpty) return null;
+    return geeignet[random.nextInt(geeignet.length)];
   }
+
+  /// Ob [gruppe] mindestens einen Titel mit [minJahre] Jahren Historie hat –
+  /// für die Vorab-Prüfung im Startmenü, damit eine unspielbare Kombination
+  /// gar nicht erst anwählbar ist.
+  bool hatSpielbareAktie(List<AktienEintrag> katalog,
+          {required double minJahre, String? gruppe}) =>
+      katalog.any(
+          (a) => (gruppe == null || a.gruppe == gruppe) && a.spanneJahre >= minJahre);
 }

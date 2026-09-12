@@ -117,4 +117,58 @@ void main() {
       expect(repo2.eintraege.first.perzentil, closeTo(77.0, 1e-9));
     });
   });
+
+  group('Perzentil nachtragen (P3)', () {
+    test('das nachgetragene Perzentil landet am letzten Eintrag und in den Prefs',
+        () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final repo = SpielverlaufRepository(prefs);
+      await repo.hinzufuegen(baueEintrag(erstelltAm: DateTime.utc(2020, 1, 1)));
+      await repo.hinzufuegen(baueEintrag(erstelltAm: DateTime.utc(2020, 1, 2)));
+
+      await repo.ergaenzePerzentilDesLetzten(63.5);
+
+      expect(repo.eintraege.first.perzentil, isNull);
+      expect(repo.eintraege.last.perzentil, closeTo(63.5, 1e-9));
+      // Persistiert, nicht nur im Speicher.
+      expect(SpielverlaufRepository(prefs).eintraege.last.perzentil, closeTo(63.5, 1e-9));
+    });
+
+    test('ein fehlgeschlagenes Monte-Carlo (null) lässt den Eintrag unangetastet',
+        () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final repo = SpielverlaufRepository(prefs);
+      await repo.hinzufuegen(baueEintrag());
+
+      await repo.ergaenzePerzentilDesLetzten(null);
+
+      expect(repo.eintraege.length, 1);
+      expect(repo.eintraege.single.perzentil, isNull);
+    });
+
+    test('ohne jeden Eintrag ist das Nachtragen ein No-op', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final repo = SpielverlaufRepository(prefs);
+
+      await repo.ergaenzePerzentilDesLetzten(50.0);
+
+      expect(repo.eintraege, isEmpty);
+    });
+
+    test('mitPerzentil kopiert alle übrigen Felder unverändert', () {
+      final original = baueEintrag(abstandKaufZuHochTage: 8.0);
+      final kopie = original.mitPerzentil(12.0);
+
+      expect(kopie.perzentil, closeTo(12.0, 1e-9));
+      expect(kopie.ticker, original.ticker);
+      expect(kopie.erstelltAm, original.erstelltAm);
+      expect(kopie.startDatum, original.startDatum);
+      expect(kopie.scoreVsInvestor, original.scoreVsInvestor);
+      expect(kopie.marktRenditeRunde, original.marktRenditeRunde);
+      expect(kopie.abstandKaufZuHochTage, original.abstandKaufZuHochTage);
+    });
+  });
 }

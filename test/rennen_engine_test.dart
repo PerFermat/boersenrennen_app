@@ -657,10 +657,47 @@ void main() {
         e.schritt();
       }
 
-      final zins2020 = 100000 * (math.pow(1.5, 30 / 365) - 1);
+      // 31 Tage, nicht 30: die Zinsperiode vom 1. Dezember bis zum 1. Januar
+      // liegt vollständig im Kalenderjahr 2020. Der letzte Schritt
+      // (31.12. -> 01.01.) verzinst den 31. Dezember – früher wurde dieser
+      // Tag dem Folgejahr zugeschlagen, seit P6 wird der Zins eines Schritts
+      // anteilig auf die beiden Jahre verteilt.
+      final zins2020 = 100000 * (math.pow(1.5, 31 / 365) - 1);
       final erwarteteSteuer2020 = math.max(0.0, zins2020 - cfg.sparerpauschbetrag) * cfg.steuersatz;
       // Ohne Teilfreistellung: cfg.teilfreistellung (0.30) darf hier nicht wirken.
       expect(e.gezahlteSteuerSicherheit, closeTo(erwarteteSteuer2020, 1e-3));
+    });
+
+    test('ein Schritt über den Jahreswechsel verteilt seinen Zins anteilig (P6)', () {
+      const cfg = SpielKonfiguration(
+        startCash: 100000,
+        monatsEinzahlung: 0.0,
+        zinssatz: 50.0,
+        steuernAktiv: true,
+        sparerpauschbetrag: 0,
+      );
+      // Handelstage 30.12.2020, 04.01. und 05.01.2021 – der erste Schritt
+      // überspannt 5 Kalendertage, von denen 2 (30./31.12.) ins alte Jahr
+      // gehören. Der dritte Tag sorgt dafür, dass die Runde nach dem ersten
+      // Schritt noch läuft: beendeRunde() würde das Teiljahr sonst sofort
+      // mitabrechnen und den Effekt verdecken.
+      final reihe = Kursreihe.ausListen(
+        [
+          Kursreihe.zuEpochTag(DateTime.utc(2020, 12, 30)),
+          Kursreihe.zuEpochTag(DateTime.utc(2021, 1, 4)),
+          Kursreihe.zuEpochTag(DateTime.utc(2021, 1, 5)),
+        ],
+        [100.0, 100.0, 100.0],
+      );
+      final e = RennenEngine(reihe, cfg);
+      e.schritt();
+
+      expect(e.fertig, isFalse);
+      final zinsGesamt = 100000 * (math.pow(1.5, 5 / 365) - 1);
+      // 2 von 5 Tagen liegen in 2020 – nur dieser Teil wird zum Jahreswechsel
+      // versteuert. Vorher landete der volle Betrag im neuen Jahr.
+      expect(e.gezahlteSteuerSicherheit,
+          closeTo(zinsGesamt * (2 / 5) * cfg.steuersatz, 1e-6));
     });
 
     test('eine über beendeRunde() vorzeitig beendete Runde rechnet das laufende '

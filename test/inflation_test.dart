@@ -44,4 +44,49 @@ void main() {
       expect(Inflation.preisfaktor(von, bis), closeTo(erwartet, 1e-9));
     });
   });
+
+  group('Datenabdeckung (P5)', () {
+    test('ein vollständig abgedeckter Zeitraum ist belastbar', () {
+      final von = Kursreihe.zuEpochTag(DateTime.utc(2010, 1, 1));
+      final bis = Kursreihe.zuEpochTag(DateTime.utc(2020, 1, 1));
+
+      final p = Inflation.preisfaktorMitAbdeckung(von, bis);
+
+      expect(p.abdeckung, closeTo(1.0, 1e-9));
+      expect(p.istBelastbar, isTrue);
+      expect(p.faktor, greaterThan(1.0));
+    });
+
+    test('ein Zeitraum ganz außerhalb der Tabelle ist nicht belastbar', () {
+      // Vorher nicht von einer echten Nullteuerung unterscheidbar: der Faktor
+      // ist in beiden Fällen 1.0.
+      final von = Kursreihe.zuEpochTag(DateTime.utc(1980, 1, 1));
+      final bis = Kursreihe.zuEpochTag(DateTime.utc(1985, 1, 1));
+
+      final p = Inflation.preisfaktorMitAbdeckung(von, bis);
+
+      expect(p.faktor, 1.0);
+      expect(p.abdeckung, 0.0);
+      expect(p.istBelastbar, isFalse);
+    });
+
+    test('eine Runde, die über das Tabellenende hinausläuft, ist nicht belastbar', () {
+      // Der Alltagsfall: die Kursdaten reichen weiter als die Teuerungsreihe.
+      final von = Kursreihe.zuEpochTag(DateTime.utc(Inflation.letztesJahr - 1, 1, 1));
+      final bis = Kursreihe.zuEpochTag(DateTime.utc(Inflation.letztesJahr + 4, 1, 1));
+
+      final p = Inflation.preisfaktorMitAbdeckung(von, bis);
+
+      expect(p.abdeckung, lessThan(Preisfaktor.mindestAbdeckung));
+      expect(p.istBelastbar, isFalse);
+    });
+
+    test('preisfaktor bleibt der Faktor aus preisfaktorMitAbdeckung', () {
+      final von = Kursreihe.zuEpochTag(DateTime.utc(2005, 3, 7));
+      final bis = Kursreihe.zuEpochTag(DateTime.utc(2018, 11, 2));
+
+      expect(Inflation.preisfaktor(von, bis),
+          Inflation.preisfaktorMitAbdeckung(von, bis).faktor);
+    });
+  });
 }

@@ -146,6 +146,19 @@ Klick) teilen sich einen gemeinsamen, schlanken Kern in `lib/domain/spieler_pfad
 Kauf-/Verkaufstage, ohne Investor/Sicherheit/Zinsen/Stolpern – das reicht für alle
 drei Fragestellungen und spart, Investor/Sicherheit tausendfach mitzurechnen.
 
+Zwei Eigenschaften dieses Kerns sind nicht offensichtlich und deshalb durch Tests
+festgenagelt:
+
+- Er verarbeitet **mehrere Aktionen am selben Handelstag** in Listenreihenfolge.
+  Der Spieler kann an einem Tag kaufen und wieder verkaufen; wurde pro Tag nur
+  eine Aktion konsumiert, blieb der Listenkopf danach dauerhaft auf einem
+  vergangenen Tag stehen und jede weitere Entscheidung fiel still unter den Tisch.
+- Er kennt **keine Abgeltungsteuer**. Wo sein Ergebnis gegen den echten Endwert
+  gestellt wird (Monte-Carlo-Perzentil, teuerster Klick), wird der echte Endwert
+  deshalb um die gezahlte Steuer bereinigt – sonst hätte der Vergleichslauf einen
+  Vorteil, den er nur der fehlenden Modellierung verdankt. Bei `steuernAktiv:
+  false` (Default) ist diese Korrektur exakt 0.
+
 ### Wie viel war Timing, wie viel Zufall? (kontrafaktische Vergleiche)
 
 Drei weitere Was-wäre-wenn-Simulationen, alle über denselben `simuliereSpielerpfad`-Kern:
@@ -191,6 +204,12 @@ Score und Bestenliste rückwirkend verzerrt. Die Sicherheit versteuert ihre Zins
 zum Jahreswechsel. Bewusst **nicht** modelliert: die Vorabpauschale auf
 thesaurierende Fonds (`lib/domain/spiel_konfiguration.dart`).
 
+Der ausgewiesene Steuernachteil gegenüber dem Investor zählt auf der Spielerseite
+**gezahlte plus latente** Steuer (`RennenEngine.latenteSteuerSpieler`). Nur die
+gezahlte zu nehmen wäre asymmetrisch: wer investiert ins Ziel läuft, genießt
+dieselbe Stundung wie der Investor und stünde sonst als steuerlich günstiger da,
+als er ist.
+
 ### Inflation und reale Kaufkraft (`lib/domain/inflation.dart`)
 
 Neben jedem nominalen Endbetrag steht eine kleinere Zeile mit der realen
@@ -200,6 +219,15 @@ App durchgängig in Euro anzeigt, auch für US-Titel, wird bewusst eine einzelne
 deutsche Reihe verwendet statt länderspezifischer Inflation. Die **Wertung
 bleibt nominal** – `Score.vsInvestor` ist ein Verhältnis zweier Werte desselben
 Zeitraums, die Inflation kürzt sich heraus.
+
+Die Tabelle endet früher als die Kursdaten. `Inflation.preisfaktorMitAbdeckung`
+liefert deshalb neben dem Faktor auch den **Anteil abgedeckter Tage**; unter 95 %
+blendet der Ergebnis-Screen den ganzen Kaufkraft-Block aus, statt eine zu niedrige
+Teuerung – im Extremfall „0 %" – als Tatsache zu behaupten, die nur aus fehlenden
+Daten stammt. Der Satz „real liegt die Sicherheit unter der Summe deiner
+Einzahlungen" vergleicht außerdem gegen die **abgezinste** Einzahlungssumme: die
+Beiträge fielen über zehn Jahre verteilt an und hatten nicht alle die Kaufkraft
+des Rundenbeginns.
 
 ### Der Würfel-Investor (`RennenEngine.wuerfelAktiv`)
 
@@ -343,15 +371,31 @@ Ticker auch eine **Gruppe** ein (`Einzelaktien` / `Welt-ETF` / `Themen-Länder-E
 Absolute Offsets statt Deltas – dadurch bleibt die Suche nach dem Startdatum eine
 Binärsuche in O(log n). 6 Byte pro Kurs statt ~23 Byte als JSON.
 
+Die Tages-Offsets müssen **streng aufsteigend** sein – darauf beruht die
+Binärsuche. `KursdatenCodec` prüft das beim Laden und lehnt eine Datei sonst mit
+`FormatException` ab, ebenso eine leere Reihe und Kurse ≤ 0 oder `NaN`. Ohne
+diese Prüfung gäbe eine beschädigte Datei keinen Fehler, sondern still falsche
+Kurse und damit falsche Renditen.
+
 Auffällige Tagesbewegungen (≥ 35 %) werden als **Hinweis** gemeldet, nicht als
 Fehler – im Pool sind das echte Ereignisse (Apple −52 % am 29.09.2000,
-Öl-Crash April 2020), keine Datenfehler.
+Öl-Crash April 2020), keine Datenfehler. Zusätzlich gemeldet werden
+Handelspausen über 10 Kalendertage, ≥ 5 identische Folgekurse und ein Reihenende,
+das älter als 10 Tage ist – die drei Muster, hinter denen Delistings,
+Handelsaussetzungen und eingestellte Ticker stecken.
+
+**Der Export ist ganz oder gar nicht.** Erst werden alle Titel geladen und im
+Speicher kodiert, dann wird geschrieben; jede Datei landet über eine `.tmp` plus
+`os.replace` atomar. Werden weniger als 80 % der Titel geladen, bricht das Skript
+mit Exit-Code 1 ab und rührt `assets/` nicht an – vorher überschrieb ein
+yfinance-Ausfall das `index.json` klaglos mit einer leeren Liste und endete
+trotzdem mit Exit-Code 0.
 
 ## Entwickeln
 
 ```bash
 flutter pub get
-flutter test        # 153 Tests: Simulation, Kamera, Kulisse, Codec, Rundenwahl, Scores,
+flutter test        # 182 Tests: Simulation, Kamera, Kulisse, Codec, Rundenwahl, Scores,
                     # Rundenauswertung, Monte-Carlo, Trade-Log, Abgeltungsteuer,
                     # Inflation, Würfel-Investor, Bestenliste, kontrafaktische
                     # Vergleiche, Behavior Gap, Verhaltensprofil, Erfolge
@@ -396,6 +440,34 @@ Gelegenheit wurde ein latenter Division-durch-Null-Fehler in
 `behaviorGapInMonatsEinzahlungen` (V10) rechneten beide mit `.../ cfg.monatsEinzahlung`,
 was bei einer Runde mit `monatsEinzahlung: 0.0` zu `NaN.round()` und damit zu einer
 Exception geführt hätte – bislang deckte kein bestehender Test diesen Fall ab.
+
+Seit dem Review-Paket P1–P3 gilt zusätzlich:
+
+- `simuliereSpielerpfad` arbeitet **alle** Aktionen eines Tages ab (vorher genau
+  eine, wodurch der Rest der Liste still verloren ging, sobald der Spieler an
+  einem Tag kaufte **und** verkaufte).
+- Die Referenz „ohne die besten/schlechtesten fünf Tage" wird über den
+  Soll-Investitionszustand je Tag konstruiert statt über Kauf-/Verkaufspaare.
+  Nur so stimmt sie auch für **benachbarte** Ausschlusstage – und die
+  Extremtage einer Runde liegen typischerweise dicht beieinander.
+- Monte-Carlo-Perzentil und teuerster Klick vergleichen gegen den um die
+  gezahlte Steuer bereinigten Endwert (siehe oben).
+- Eine Runde wird **vor** der Monte-Carlo-Rechnung protokolliert und bekommt ihr
+  Perzentil über `SpielverlaufRepository.ergaenzePerzentilDesLetzten`
+  nachgetragen. Vorher hing beides am selben `await`: warf das Isolate, wurde die
+  Runde weder protokolliert noch auf Erfolge geprüft.
+- `KursdatenRepository.zufall` liefert `null`, statt still auf einen zu kurzen
+  Titel zurückzufallen. Der Startbildschirm meldet das – „Welt-ETFs + 20 Jahre"
+  gab es im Pool nie, der Startknopf tat dann wortlos nichts.
+- Der Monte-Carlo-Seed wird aus dem Rundenzustand abgeleitet statt aus der Uhr:
+  das Perzentil ist der Sortierschlüssel der Bestenliste und darf für dieselbe
+  Runde nicht schwanken.
+- Der Bestenlisten-Eintrag speichert den zuletzt **simulierten** Tag als
+  `endDatum`, nicht das Ende des gezogenen Ausschnitts – bei einer vorzeitig
+  beendeten Runde stand dort sonst ein nie gespielter Zeitraum.
+- Der Zins eines Schritts über den Jahreswechsel wird **anteilig** auf beide
+  Jahre verteilt, statt komplett ins neue zu fallen.
+- `RennenEngine.schritt()` beendet auch im Frühausstieg über `beendeRunde()`.
 
 ## Später
 

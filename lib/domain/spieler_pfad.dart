@@ -1,9 +1,10 @@
 import 'kursreihe.dart';
 import 'spiel_konfiguration.dart';
 
-/// Eine einzelne geplante Handelsaktion für [simuliereSpielerpfad]. Höchstens
-/// eine Aktion pro [tagIndex]; die Liste muss aufsteigend nach [tagIndex]
-/// sortiert übergeben werden.
+/// Eine einzelne geplante Handelsaktion für [simuliereSpielerpfad]. Die Liste
+/// muss aufsteigend nach [tagIndex] sortiert übergeben werden; **mehrere**
+/// Aktionen am selben [tagIndex] sind erlaubt und werden in Listenreihenfolge
+/// ausgeführt – der Spieler kann an einem Tag kaufen und wieder verkaufen.
 class GeplanteAktion {
   final int tagIndex;
   final bool istKauf;
@@ -72,7 +73,10 @@ SpielerPfadErgebnis simuliereSpielerpfad({
       }
     }
 
-    if (aktionsIndex < aktionen.length && aktionen[aktionsIndex].tagIndex == i) {
+    // `while`, nicht `if`: bleiben mehrere Aktionen auf demselben Tag liegen,
+    // würde ein `if` den Listenkopf dauerhaft auf einem bereits vergangenen
+    // Tag stehen lassen – ab da wäre jede weitere Aktion still verworfen.
+    while (aktionsIndex < aktionen.length && aktionen[aktionsIndex].tagIndex == i) {
       final aktion = aktionen[aktionsIndex++];
       if (aktion.istKauf) {
         final ausfuehrungsKurs = mitSlippage ? kurs * (1 + cfg.slippage) : kurs;
