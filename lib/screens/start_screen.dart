@@ -27,6 +27,7 @@ const _gruppen = <String?>[
   'Einzelaktien',
   'Welt-ETF',
   'Themen-Länder-ETF',
+  'Index-Rohstoff',
   'Historisch',
 ];
 const _gruppenLabel = <String?, String>{
@@ -34,6 +35,7 @@ const _gruppenLabel = <String?, String>{
   'Einzelaktien': 'Einzelaktien',
   'Welt-ETF': 'Welt-ETFs',
   'Themen-Länder-ETF': 'Themen/Länder-ETFs',
+  'Index-Rohstoff': 'Indizes/Rohstoffe',
   'Historisch': 'Historisch',
 };
 

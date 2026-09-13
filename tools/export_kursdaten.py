@@ -506,8 +506,13 @@ def main():
 
         print(f"   Spleiß ab {spleiss_ab}: Korrelation {korr:.3f}, "
               f"Trackingdifferenz {trackdiff:+.2f} pp/Jahr")
+        # Zusammengesetzter Ticker: Die kurze Reihe desselben ETF bleibt im
+        # Pool, "XLK" allein wäre also nicht mehr eindeutig. Der Ticker ist der
+        # Schlüssel, unter dem Bestenliste und Spielprotokoll eine Runde
+        # ablegen – zwei verschiedene Reihen dürfen sich den nicht teilen.
         verarbeite(
-            ticker, name, kategorie, GRUPPE_HISTORISCH, werte, f"{kuerzel}.bin",
+            f"{vorgaenger}+{ticker}", name, kategorie, GRUPPE_HISTORISCH,
+            werte, f"{kuerzel}.bin",
             zusatz={
                 "spleissAb": spleiss_ab.isoformat(),
                 "quellen": [vorgaenger, ticker],

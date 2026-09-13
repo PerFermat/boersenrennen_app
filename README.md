@@ -14,7 +14,8 @@ Drei Anlagestrategien treten auf **derselben**, dem Spieler verborgenen Zufallsa
 Alle starten mit 1000 €, monatlich kommen 100 € dazu. Im Startmenü lässt sich
 wählen, aus welcher Gruppe die Zufallsaktie kommt: **Einzelaktien**, **Welt-ETFs**
 (z. B. Vanguard Total World, MSCI ACWI/World) oder **Themen/Länder-ETFs**
-(Länder wie Japan/Brasilien/Indien, Sektoren wie Technologie/Energie/Gesundheit) –
+(Länder wie Japan/Brasilien/Indien, Sektoren wie Technologie/Energie/Gesundheit),
+**Indizes/Rohstoffe** oder **Historisch** (Reihen, die bis 1927 zurückreichen) –
 oder ganz zufällig aus allen Gruppen.
 
 **Bildschirmaufbau:** Im oberen Viertel läuft der Kursverlauf mit. Darunter die
@@ -219,6 +220,22 @@ App durchgängig in Euro anzeigt, auch für US-Titel, wird bewusst eine einzelne
 deutsche Reihe verwendet statt länderspezifischer Inflation. Die **Wertung
 bleibt nominal** – `Score.vsInvestor` ist ein Verhältnis zweier Werte desselben
 Zeitraums, die Inflation kürzt sich heraus.
+
+**Die Tabelle ist gegengeprüft.** Jeder Wert von 1992 bis 2025 wurde gegen den
+amtlichen Verbraucherpreisindex (Basis 2020 = 100) nachgerechnet: für 2001–2025
+gegen die veröffentlichten Jahresdurchschnitte, für 1992–2000 gegen den
+Mittelwert der zwölf Monatswerte. Dass diese Methode trägt, wurde an 2001 und
+2002 gegengeprüft, wo beide Quellen vorliegen – alle 34 Jahre stimmen auf unter
+0,001 Prozentpunkte. Die drei Nachkommastellen sind also echt und nicht aus
+gerundeten Pressemeldungen abgeleitet. Ein Test multipliziert zusätzlich die
+gesamte Kette und vergleicht sie mit dem Indexquotienten 121,9 / 61,9.
+
+Der Eintrag für **2026 ist vorläufig**: Das Jahr läuft noch, es gibt keinen
+Jahresdurchschnitt. Der Wert vergleicht die veröffentlichten Monate Januar bis
+August 2026 mit demselben Zeitraum 2025 – amtlich gemessen, nur eben für acht
+statt zwölf Monate. Ohne ihn fiele praktisch jede Runde unter die
+Mindestabdeckung (die Kursdaten reichen bis September 2026) und die Kaufkraft
+würde nie angezeigt. Beim Jahreswechsel durch den endgültigen Wert ersetzen.
 
 Die Tabelle endet früher als die Kursdaten. `Inflation.preisfaktorMitAbdeckung`
 liefert deshalb neben dem Faktor auch den **Anteil abgedeckter Tage**; unter 95 %
@@ -476,7 +493,7 @@ trotzdem mit Exit-Code 0.
 
 ```bash
 flutter pub get
-flutter test        # 195 Tests: Simulation, Kamera, Kulisse, Codec, Rundenwahl, Scores,
+flutter test        # 200 Tests: Simulation, Kamera, Kulisse, Codec, Rundenwahl, Scores,
                     # Rundenauswertung, Monte-Carlo, Trade-Log, Abgeltungsteuer,
                     # Inflation, Würfel-Investor, Bestenliste, kontrafaktische
                     # Vergleiche, Behavior Gap, Verhaltensprofil, Erfolge,

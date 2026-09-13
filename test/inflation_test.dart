@@ -89,4 +89,50 @@ void main() {
           Inflation.preisfaktorMitAbdeckung(von, bis).faktor);
     });
   });
+
+  group('Tabellenumfang', () {
+    test('deckt eine heutige Runde bis ans Ende der Kursdaten ab', () {
+      // Der eigentliche Zweck der Einträge 2025/2026: Vorher endete die
+      // Tabelle 2024, und weil die Kursdaten bis September 2026 reichen, fiel
+      // praktisch *jede* Runde unter die Mindestabdeckung – die Kaufkraft
+      // wurde also nie angezeigt.
+      final p = Inflation.preisfaktorMitAbdeckung(
+        Kursreihe.zuEpochTag(DateTime.utc(2016, 9, 11)),
+        Kursreihe.zuEpochTag(DateTime.utc(2026, 9, 11)),
+      );
+
+      expect(p.abdeckung, 1.0);
+      expect(p.istBelastbar, isTrue);
+      expect(p.faktor, greaterThan(1.0));
+    });
+
+    test('ist von 1992 bis 2026 lückenlos', () {
+      expect(Inflation.erstesJahr, 1992);
+      expect(Inflation.letztesJahr, 2026);
+
+      // Ein fehlendes Jahr mitten in der Tabelle senkte die Abdeckung, ohne
+      // dass es beim Lesen der Map auffiele.
+      final p = Inflation.preisfaktorMitAbdeckung(
+        Kursreihe.zuEpochTag(DateTime.utc(1992, 1, 1)),
+        Kursreihe.zuEpochTag(DateTime.utc(2027, 1, 1)),
+      );
+      expect(p.abdeckung, 1.0);
+    });
+
+    test('die Teuerung seit 1992 entspricht dem amtlichen Index', () {
+      // Kettenprobe über die ganze Tabelle: Multipliziert man die Jahresraten
+      // 1992 bis 2025, muss das Ergebnis der Quotient der amtlichen
+      // Jahresdurchschnitte sein (Verbraucherpreisindex 2020 = 100).
+      //
+      // Bezugsjahr ist **1991** (61,9), nicht 1992: Die Rate für 1992 ist ja
+      // schon die Veränderung von 1991 auf 1992. Enthält die Tabelle einen
+      // Tippfehler, bricht diese Kette.
+      final p = Inflation.preisfaktorMitAbdeckung(
+        Kursreihe.zuEpochTag(DateTime.utc(1992, 1, 1)),
+        Kursreihe.zuEpochTag(DateTime.utc(2026, 1, 1)),
+      );
+
+      expect(p.faktor, closeTo(121.9 / 61.9, 0.002));
+    });
+  });
 }

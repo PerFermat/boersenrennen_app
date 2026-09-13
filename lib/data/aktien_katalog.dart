@@ -1,3 +1,5 @@
+import '../domain/kursreihe.dart';
+
 /// Ein Eintrag aus assets/kurse/index.json.
 class AktienEintrag {
   final String ticker;
@@ -40,6 +42,19 @@ class AktienEintrag {
 
   /// Ob die Reihe vor [spleissAb] aus einer anderen Quelle stammt.
   bool get istGespleisst => spleissAb != null;
+
+  /// Ob eine Runde, die am Epochtag [rundenStart] beginnt, in den gespleißten
+  /// Teil der Reihe hineinreicht.
+  ///
+  /// Bewusst an die **Runde** gebunden, nicht an den Titel: Wer auf einer
+  /// gespleißten Reihe einen Zeitraum komplett nach dem Spleißpunkt erwischt,
+  /// hat den echten ETF gespielt und braucht keinen Hinweis. Ein Vermerk an
+  /// jedem Titel wäre schnell Hintergrundrauschen, das niemand mehr liest.
+  bool rundeZeigtVorgaenger(int rundenStart) =>
+      spleissAb != null && rundenStart < Kursreihe.zuEpochTag(spleissAb!);
+
+  /// Der Vorgängerfonds, aus dem der Teil vor [spleissAb] stammt.
+  String? get vorgaenger => quellen.isEmpty ? null : quellen.first;
 
   factory AktienEintrag.vonJson(Map<String, dynamic> j) => AktienEintrag(
         ticker: j['ticker'] as String,

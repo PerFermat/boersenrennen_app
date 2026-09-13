@@ -5,17 +5,23 @@ import 'kursreihe.dart';
 /// Jährliche deutsche Inflationsrate (Verbraucherpreisindex ggü. Vorjahr, in %).
 /// Quelle: Statistisches Bundesamt (Destatis), Genesis-Tabelle 61111-0001.
 ///
-/// WICHTIG vor Festschreibung: Diese Tabelle stammt aus einer Web-Recherche
-/// (Destatis-abgeleitete Sekundärquelle, Abruf September 2026, gegen bekannte
-/// Eckwerte 2021–2024 plausibilisiert) – vor dem endgültigen Commit noch
-/// einmal direkt gegen die Destatis-Originaltabelle abgleichen, nicht
-/// ungeprüft übernehmen.
+/// GEPRÜFT (September 2026): Jeder Wert von 1992 bis 2025 wurde gegen den
+/// amtlichen Verbraucherpreisindex (Basis 2020 = 100) nachgerechnet – für
+/// 2001–2025 gegen die veröffentlichten Jahresdurchschnitte, für 1992–2000
+/// gegen den Mittelwert der zwölf Monatswerte. Dass diese Methode stimmt,
+/// wurde an 2001 und 2002 gegengeprüft, wo beide Quellen vorliegen.
+/// Sämtliche 34 Jahre stimmen auf unter 0,001 Prozentpunkte überein.
+///
+/// Die Werte tragen deshalb drei Nachkommastellen: Sie sind aus dem Index
+/// abgeleitet, nicht aus den auf eine Stelle gerundeten Pressemeldungen.
 ///
 /// Die Kursdaten dieser App sind gemischt deutsch/US-amerikanisch, die
 /// Anzeige erfolgt aber durchgängig in Euro. Eine einzige deutsche Reihe ist
 /// deshalb die konsistente Wahl (bewusste Vereinfachung) – eine US-Aktie wird
 /// also mit deutscher, nicht amerikanischer Inflation auf Kaufkraft gerechnet.
 const Map<int, double> _jahresteuerungDE = {
+  1992: 5.008,
+  1993: 4.462,
   1994: 2.651,
   1995: 1.865,
   1996: 1.408,
@@ -47,6 +53,19 @@ const Map<int, double> _jahresteuerungDE = {
   2022: 6.887,
   2023: 5.898,
   2024: 2.228,
+  2025: 2.179,
+
+  // VORLÄUFIG: 2026 ist noch nicht abgeschlossen, einen Jahresdurchschnitt
+  // gibt es also nicht. Der Wert ist der Vergleich der veröffentlichten
+  // Monate Januar–August 2026 mit demselben Zeitraum 2025 (Index 124,575
+  // gegen 121,513). Das ist keine Schätzung, sondern amtlich gemessen – nur
+  // eben für acht statt zwölf Monate.
+  //
+  // Ohne diesen Eintrag fiele jede Runde, die bis ans Ende der Kursdaten
+  // reicht – also praktisch jede – unter `mindestAbdeckung` und zeigte gar
+  // keine Kaufkraft. Beim nächsten Jahreswechsel durch den endgültigen
+  // Jahresdurchschnitt ersetzen.
+  2026: 2.520,
 };
 
 /// Ergebnis von [Inflation.preisfaktorMitAbdeckung].

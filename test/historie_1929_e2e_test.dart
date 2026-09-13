@@ -148,7 +148,14 @@ void main() {
 /// Kombinationen das betrifft – neue Daten dürfen die Liste verkürzen, aber
 /// nicht unbemerkt verlängern.
 void _menueTests() {
-  const gruppen = [null, 'Einzelaktien', 'Welt-ETF', 'Themen-Länder-ETF', 'Historisch'];
+  const gruppen = [
+    null,
+    'Einzelaktien',
+    'Welt-ETF',
+    'Themen-Länder-ETF',
+    'Index-Rohstoff',
+    'Historisch',
+  ];
   const dauern = [5, 10, 20];
 
   late List<AktienEintrag> katalog;
@@ -199,7 +206,8 @@ void _menueTests() {
   test('gespleißte Reihen tragen Spleißpunkt und Quellenkette', () {
     final gespleisst = katalog.where((a) => a.istGespleisst).toList();
 
-    expect(gespleisst.map((a) => a.ticker), ['VXUS', 'XLK', 'XLE', 'XLF']);
+    expect(gespleisst.map((a) => a.ticker),
+        ['VGTSX+VXUS', 'FSPTX+XLK', 'FSENX+XLE', 'FIDSX+XLF']);
     for (final a in gespleisst) {
       // Der Spleißpunkt muss *innerhalb* der Reihe liegen – läge er davor
       // oder dahinter, wäre der Hinweis im Ergebnis-Screen entweder immer
@@ -207,10 +215,41 @@ void _menueTests() {
       expect(a.spleissAb!.isAfter(a.ersterTag), isTrue, reason: a.ticker);
       expect(a.spleissAb!.isBefore(a.letzterTag), isTrue, reason: a.ticker);
 
-      // Kette von alt nach neu; der letzte Eintrag ist der Titel selbst.
+      // Kette von alt nach neu; der Ticker ist genau diese Kette.
       expect(a.quellen, hasLength(2), reason: a.ticker);
-      expect(a.quellen.last, a.ticker);
+      expect(a.quellen.join('+'), a.ticker);
     }
+  });
+
+  test('Ticker sind im ganzen Katalog eindeutig', () {
+    // Die gespleißten Reihen liegen neben der kurzen Reihe desselben ETF –
+    // "XLK" allein wäre also doppelt vergeben. Der Ticker ist der Schlüssel,
+    // unter dem Bestenliste und Spielprotokoll eine Runde ablegen.
+    final ticker = katalog.map((a) => a.ticker).toList();
+    expect(ticker.toSet(), hasLength(ticker.length));
+
+    final dateien = katalog.map((a) => a.datei).toList();
+    expect(dateien.toSet(), hasLength(dateien.length));
+  });
+
+  test('der Vorgänger-Hinweis hängt an der Runde, nicht am Titel', () {
+    final xlk = katalog.firstWhere((a) => a.ticker == 'FSPTX+XLK');
+    final ab = Kursreihe.zuEpochTag(xlk.spleissAb!);
+
+    // Runde beginnt vor dem Spleißpunkt -> zeigt den Vorgängerfonds.
+    expect(xlk.rundeZeigtVorgaenger(ab - 1), isTrue);
+    // Runde beginnt genau am oder nach dem Spleißpunkt -> echter ETF.
+    expect(xlk.rundeZeigtVorgaenger(ab), isFalse);
+    expect(xlk.rundeZeigtVorgaenger(ab + 1), isFalse);
+
+    expect(xlk.vorgaenger, 'FSPTX');
+
+    // Eine ungespleißte Reihe darf den Hinweis nie auslösen – auch nicht für
+    // einen Rundenstart weit in der Vergangenheit.
+    final gspc = katalog.firstWhere((a) => a.ticker == '^GSPC');
+    expect(gspc.rundeZeigtVorgaenger(gspc.ersterTag.millisecondsSinceEpoch), isFalse);
+    expect(gspc.rundeZeigtVorgaenger(-99999), isFalse);
+    expect(gspc.vorgaenger, isNull);
   });
 
   test('ungespleißte Reihen tragen keinen Spleißpunkt', () {
