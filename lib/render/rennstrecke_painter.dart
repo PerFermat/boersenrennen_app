@@ -6,6 +6,7 @@ import 'package:intl/intl.dart' hide TextDirection;
 
 import '../spiel/rennen_controller.dart';
 import '../theme/arcade_theme.dart';
+import '../theme/geld.dart';
 
 /// Zeichnet die Rennstrecke als scrollende Welt.
 ///
@@ -23,7 +24,7 @@ class RennstreckePainter extends CustomPainter {
   RennstreckePainter(this.controller, {required Listenable repaint})
       : super(repaint: repaint);
 
-  static final _euroFormat = NumberFormat.decimalPattern('de_DE');
+  static final _zahlFormat = NumberFormat.decimalPattern('de_DE');
 
   /// Textlayout ist vergleichsweise teuer – die Beschriftungen ändern sich nur
   /// beim Überqueren eines Meilensteins, deshalb gecacht.
@@ -261,7 +262,8 @@ class RennstreckePainter extends CustomPainter {
         ..strokeWidth = 1.5,
     );
 
-    final tp = _text('${_euroFormat.format(wert.round())} €',
+    final tp = _text(
+        '${_zahlFormat.format(wert.round())} ${Geld.symbol(controller.waehrung)}',
         (schildH * 0.30).clamp(9.0, 15.0));
 
     final pfostenOben = schildOben + schildH * 0.34;

@@ -16,6 +16,7 @@ import '../domain/rennen_engine.dart';
 import '../domain/score.dart';
 import '../render/monte_carlo_painter.dart';
 import '../theme/arcade_theme.dart';
+import '../theme/geld.dart';
 import '../ui/candy_button.dart';
 import 'bestenliste_screen.dart';
 
@@ -51,7 +52,9 @@ class _ErgebnisScreenState extends State<ErgebnisScreen> {
   /// erneut, eine erneute Berechnung wäre reine Verschwendung.
   late final RundenAuswertung auswertung;
 
-  static final _euro = NumberFormat.currency(locale: 'de_DE', symbol: '€', decimalDigits: 2);
+  /// Geldformat der gespielten Runde – fast immer Euro, beim S&P 500 ab
+  /// 1927 aber Dollar (siehe [Geld]).
+  NumberFormat get _euro => Geld.betrag(widget.aktie.waehrung);
   static final _datum = DateFormat('dd.MM.yyyy', 'de_DE');
 
   @override
@@ -187,6 +190,7 @@ class _ErgebnisScreenState extends State<ErgebnisScreen> {
       spielername: _nameController.text.trim().isEmpty ? 'Anonym' : _nameController.text.trim(),
       ticker: widget.aktie.ticker,
       aktieName: widget.aktie.name,
+      waehrung: widget.aktie.waehrung,
       startDatum: Kursreihe.zuDatum(e.reihe.ersterTag),
       // Der zuletzt simulierte Tag, nicht das Ende des gezogenen Ausschnitts:
       // eine über „Runde beenden" vorzeitig abgebrochene Runde stünde sonst
@@ -495,7 +499,8 @@ class _ErgebnisScreenState extends State<ErgebnisScreen> {
                         SizedBox(
                           height: 60,
                           child: CustomPaint(
-                            painter: MonteCarloPainter(ergebnis, e.wertSpieler),
+                            painter: MonteCarloPainter(ergebnis, e.wertSpieler,
+                                waehrung: widget.aktie.waehrung),
                             size: Size.infinite,
                           ),
                         ),

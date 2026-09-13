@@ -13,7 +13,10 @@
       "anzahl": 7273,
       "ersterTag": "1998-04-09",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "EUR",
+      "umgerechnet": false
     },
     {
       "ticker": "SIE.DE",
@@ -24,7 +27,10 @@
       "anzahl": 7642,
       "ersterTag": "1996-11-08",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "EUR",
+      "umgerechnet": false
     },
     {
       "ticker": "ALV.DE",
@@ -35,7 +41,10 @@
       "anzahl": 7616,
       "ersterTag": "1996-12-16",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "EUR",
+      "umgerechnet": false
     },
     {
       "ticker": "BMW.DE",
@@ -46,7 +55,10 @@
       "anzahl": 7642,
       "ersterTag": "1996-11-08",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "EUR",
+      "umgerechnet": false
     },
     {
       "ticker": "VOW3.DE",
@@ -57,7 +69,10 @@
       "anzahl": 7199,
       "ersterTag": "1998-07-22",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "EUR",
+      "umgerechnet": false
     },
     {
       "ticker": "DTE.DE",
@@ -68,7 +83,10 @@
       "anzahl": 7636,
       "ersterTag": "1996-11-18",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "EUR",
+      "umgerechnet": false
     },
     {
       "ticker": "MBG.DE",
@@ -79,7 +97,10 @@
       "anzahl": 7649,
       "ersterTag": "1996-10-30",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "EUR",
+      "umgerechnet": false
     },
     {
       "ticker": "BAS.DE",
@@ -90,7 +111,10 @@
       "anzahl": 7616,
       "ersterTag": "1996-12-16",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "EUR",
+      "umgerechnet": false
     },
     {
       "ticker": "ADS.DE",
@@ -101,7 +125,10 @@
       "anzahl": 7219,
       "ersterTag": "1998-06-24",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "EUR",
+      "umgerechnet": false
     },
     {
       "ticker": "AAPL",
@@ -112,7 +139,10 @@
       "anzahl": 7976,
       "ersterTag": "1995-01-03",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true
     },
     {
       "ticker": "MSFT",
@@ -123,7 +153,10 @@
       "anzahl": 7976,
       "ersterTag": "1995-01-03",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true
     },
     {
       "ticker": "GOOGL",
@@ -134,7 +167,10 @@
       "anzahl": 5551,
       "ersterTag": "2004-08-19",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true
     },
     {
       "ticker": "AMZN",
@@ -145,7 +181,10 @@
       "anzahl": 7377,
       "ersterTag": "1997-05-15",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true
     },
     {
       "ticker": "NVDA",
@@ -156,7 +195,10 @@
       "anzahl": 6952,
       "ersterTag": "1999-01-22",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true
     },
     {
       "ticker": "META",
@@ -167,7 +209,10 @@
       "anzahl": 3599,
       "ersterTag": "2012-05-18",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true
     },
     {
       "ticker": "NFLX",
@@ -178,7 +223,10 @@
       "anzahl": 6115,
       "ersterTag": "2002-05-23",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true
     },
     {
       "ticker": "TSLA",
@@ -189,7 +237,10 @@
       "anzahl": 4076,
       "ersterTag": "2010-06-29",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true
     },
     {
       "ticker": "JNJ",
@@ -200,7 +251,10 @@
       "anzahl": 7976,
       "ersterTag": "1995-01-03",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true
     },
     {
       "ticker": "JPM",
@@ -211,7 +265,10 @@
       "anzahl": 7976,
       "ersterTag": "1995-01-03",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true
     },
     {
       "ticker": "KO",
@@ -222,7 +279,10 @@
       "anzahl": 7976,
       "ersterTag": "1995-01-03",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true
     },
     {
       "ticker": "DIS",
@@ -233,7 +293,10 @@
       "anzahl": 7976,
       "ersterTag": "1995-01-03",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true
     },
     {
       "ticker": "XOM",
@@ -244,7 +307,10 @@
       "anzahl": 7976,
       "ersterTag": "1995-01-03",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true
     },
     {
       "ticker": "WMT",
@@ -255,7 +321,10 @@
       "anzahl": 7976,
       "ersterTag": "1995-01-03",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true
     },
     {
       "ticker": "VT",
@@ -266,7 +335,10 @@
       "anzahl": 4581,
       "ersterTag": "2008-06-26",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true
     },
     {
       "ticker": "ACWI",
@@ -277,7 +349,10 @@
       "anzahl": 4644,
       "ersterTag": "2008-03-28",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true
     },
     {
       "ticker": "URTH",
@@ -288,7 +363,10 @@
       "anzahl": 3687,
       "ersterTag": "2012-01-12",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true
     },
     {
       "ticker": "VEU",
@@ -299,7 +377,10 @@
       "anzahl": 4910,
       "ersterTag": "2007-03-08",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true
     },
     {
       "ticker": "VXUS",
@@ -310,7 +391,10 @@
       "anzahl": 3928,
       "ersterTag": "2011-01-28",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true
     },
     {
       "ticker": "EWJ",
@@ -321,7 +405,10 @@
       "anzahl": 7671,
       "ersterTag": "1996-03-18",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true
     },
     {
       "ticker": "EWZ",
@@ -332,7 +419,10 @@
       "anzahl": 6579,
       "ersterTag": "2000-07-14",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true
     },
     {
       "ticker": "INDA",
@@ -343,7 +433,10 @@
       "anzahl": 3672,
       "ersterTag": "2012-02-03",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true
     },
     {
       "ticker": "MCHI",
@@ -354,7 +447,10 @@
       "anzahl": 3885,
       "ersterTag": "2011-03-31",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true
     },
     {
       "ticker": "EWG",
@@ -365,7 +461,10 @@
       "anzahl": 7671,
       "ersterTag": "1996-03-18",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true
     },
     {
       "ticker": "EWU",
@@ -376,7 +475,10 @@
       "anzahl": 7671,
       "ersterTag": "1996-03-18",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true
     },
     {
       "ticker": "EWC",
@@ -387,7 +489,10 @@
       "anzahl": 7671,
       "ersterTag": "1996-03-18",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true
     },
     {
       "ticker": "EWA",
@@ -398,7 +503,10 @@
       "anzahl": 7671,
       "ersterTag": "1996-03-18",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true
     },
     {
       "ticker": "XLK",
@@ -409,7 +517,10 @@
       "anzahl": 6972,
       "ersterTag": "1998-12-22",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true
     },
     {
       "ticker": "XLE",
@@ -420,7 +531,10 @@
       "anzahl": 6972,
       "ersterTag": "1998-12-22",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true
     },
     {
       "ticker": "XLV",
@@ -431,7 +545,10 @@
       "anzahl": 6972,
       "ersterTag": "1998-12-22",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true
     },
     {
       "ticker": "XLF",
@@ -442,7 +559,10 @@
       "anzahl": 6972,
       "ersterTag": "1998-12-22",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true
     },
     {
       "ticker": "ICLN",
@@ -453,7 +573,10 @@
       "anzahl": 4582,
       "ersterTag": "2008-06-25",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true
     },
     {
       "ticker": "^GDAXI",
@@ -464,7 +587,10 @@
       "anzahl": 8034,
       "ersterTag": "1995-01-02",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "EUR",
+      "umgerechnet": false
     },
     {
       "ticker": "^DJI",
@@ -475,7 +601,10 @@
       "anzahl": 7976,
       "ersterTag": "1995-01-03",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true
     },
     {
       "ticker": "^NDX",
@@ -486,7 +615,10 @@
       "anzahl": 7976,
       "ersterTag": "1995-01-03",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true
     },
     {
       "ticker": "^GSPC",
@@ -497,7 +629,10 @@
       "anzahl": 24791,
       "ersterTag": "1927-12-30",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "USD",
+      "notierung": "USD",
+      "umgerechnet": false
     },
     {
       "ticker": "^IXIC",
@@ -508,7 +643,10 @@
       "anzahl": 14017,
       "ersterTag": "1971-02-05",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true
     },
     {
       "ticker": "^N225",
@@ -519,7 +657,10 @@
       "anzahl": 11483,
       "ersterTag": "1980-01-04",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "JPY",
+      "umgerechnet": true
     },
     {
       "ticker": "GC=F",
@@ -530,7 +671,10 @@
       "anzahl": 6532,
       "ersterTag": "2000-08-30",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true
     },
     {
       "ticker": "SI=F",
@@ -541,7 +685,10 @@
       "anzahl": 6534,
       "ersterTag": "2000-08-30",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true
     },
     {
       "ticker": "CL=F",
@@ -552,7 +699,10 @@
       "anzahl": 6540,
       "ersterTag": "2000-08-23",
       "letzterTag": "2026-09-11",
-      "quelle": "bundled"
+      "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true
     },
     {
       "ticker": "VGTSX+VXUS",
@@ -564,6 +714,9 @@
       "ersterTag": "1996-04-29",
       "letzterTag": "2026-09-11",
       "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true,
       "spleissAb": "2011-01-28",
       "quellen": [
         "VGTSX",
@@ -582,6 +735,9 @@
       "ersterTag": "1983-01-03",
       "letzterTag": "2026-09-11",
       "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true,
       "spleissAb": "1998-12-22",
       "quellen": [
         "FSPTX",
@@ -600,6 +756,9 @@
       "ersterTag": "1985-01-02",
       "letzterTag": "2026-09-11",
       "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true,
       "spleissAb": "1998-12-22",
       "quellen": [
         "FSENX",
@@ -618,6 +777,9 @@
       "ersterTag": "1985-01-02",
       "letzterTag": "2026-09-11",
       "quelle": "bundled",
+      "waehrung": "EUR",
+      "notierung": "USD",
+      "umgerechnet": true,
       "spleissAb": "1998-12-22",
       "quellen": [
         "FIDSX",

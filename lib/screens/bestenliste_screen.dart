@@ -4,13 +4,13 @@ import 'package:provider/provider.dart';
 
 import '../data/bestenliste.dart';
 import '../theme/arcade_theme.dart';
+import '../theme/geld.dart';
 
 /// Lokale Bestenliste, absteigend nach der Outperformance gegenüber dem
 /// Investor – dem rankingrelevanten Wert.
 class BestenlisteScreen extends StatelessWidget {
   const BestenlisteScreen({super.key});
 
-  static final _euro = NumberFormat.currency(locale: 'de_DE', symbol: '€', decimalDigits: 0);
   static final _datum = DateFormat('MM/yyyy', 'de_DE');
 
   @override
@@ -97,9 +97,9 @@ class BestenlisteScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  'Du ${_euro.format(e.endbetragSpieler)} · '
-                  'Investor ${_euro.format(e.endbetragInvestor)} · '
-                  'Sicher ${_euro.format(e.endbetragSicherheit)}',
+                  'Du ${Geld.betrag(e.waehrung, nachkomma: 0).format(e.endbetragSpieler)} · '
+                  'Investor ${Geld.betrag(e.waehrung, nachkomma: 0).format(e.endbetragInvestor)} · '
+                  'Sicher ${Geld.betrag(e.waehrung, nachkomma: 0).format(e.endbetragSicherheit)}',
                   style: const TextStyle(fontSize: 10, color: ArcadeFarben.tinteHell),
                 ),
               ],

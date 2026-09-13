@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Tests für die Spleiß-Mechanik aus export_kursdaten.py.
+Tests für export_kursdaten.py: Spleiß-Mechanik und Währungsumrechnung.
 
-Aufruf (kein Netz nötig, alle Reihen sind synthetisch):
-    ./.venv/bin/python tools/test_spleiss.py
+Aufruf (kein Netz nötig, alle Reihen und Wechselkurse sind synthetisch):
+    ./.venv/bin/python tools/test_export.py
 """
 
 import importlib.util
@@ -173,6 +173,78 @@ def test_negativer_basistag_ueberlebt_den_roundtrip():
     assert basis < 0, basis
     assert ex.EPOCHE + timedelta(days=basis) == werte[0][0]
     assert anzahl == len(werte)
+
+
+class FesterKurs:
+    """Minimaler Ersatz für `Wechselkurs` in den Umrechnungstests."""
+
+    def __init__(self, faktoren):
+        self._f = faktoren
+
+    def faktor(self, waehrung, d):
+        if waehrung == "EUR":
+            return 1.0
+        return self._f.get(d)
+
+
+def test_euro_reihen_bleiben_unveraendert():
+    werte = reihe(date(2000, 1, 3), 300, lambda i: 10.0 + i)
+    assert ex.rechne_in_euro(werte, "EUR", FesterKurs({})) is werte
+
+
+def test_umrechnung_skaliert_taggenau():
+    werte = reihe(date(2000, 1, 3), 3, lambda i: 100.0)
+    kurse = FesterKurs({werte[0][0]: 1.0, werte[1][0]: 0.5, werte[2][0]: 2.0})
+
+    aus = ex.rechne_in_euro(werte, "USD", kurse)
+
+    assert [round(k, 6) for _, k in aus] == [100.0, 50.0, 200.0]
+
+
+def test_fehlender_wechselkurs_bricht_ab():
+    """
+    Kein stiller Rückfall: Eine halb umgerechnete Reihe hätte mittendrin
+    einen Sprung, der wie ein Kursereignis aussähe. Genau dieser Fall tritt
+    beim S&P 500 ab 1927 ein.
+    """
+    werte = reihe(date(2000, 1, 3), 3, lambda i: 100.0)
+    kurse = FesterKurs({werte[0][0]: 1.0, werte[2][0]: 1.0})  # mittlerer Tag fehlt
+
+    try:
+        ex.rechne_in_euro(werte, "USD", kurse)
+    except ValueError as err:
+        assert "Kein Wechselkurs" in str(err), err
+    else:
+        raise AssertionError("fehlender Wechselkurs wurde stillschweigend übergangen")
+
+
+def test_waehrung_wird_am_ticker_erkannt():
+    assert ex.waehrung_von("SAP.DE") == "EUR"
+    assert ex.waehrung_von("^GDAXI") == "EUR"
+    assert ex.waehrung_von("^N225") == "JPY"
+    assert ex.waehrung_von("AAPL") == "USD"
+    assert ex.waehrung_von("^GSPC") == "USD"
+    assert ex.waehrung_von("GC=F") == "USD"
+
+
+def test_monatskurse_werden_interpoliert_nicht_fortgeschrieben():
+    """
+    Ein fortgeschriebener Monatsdurchschnitt erzeugte an jedem Monatsersten
+    einen Sprung von rund 2 % – in der Simulation ununterscheidbar von einem
+    echten Kursereignis.
+    """
+    monatlich = {date(1990, 1, 1): 2.0, date(1990, 2, 1): 3.0}
+    kurse = ex.Wechselkurs(monatlich, {date(1999, 1, 4): 1.0}, {date(1990, 1, 1): 100.0})
+
+    a = kurse.eur_je_usd(date(1990, 1, 15))   # erste Stützstelle
+    b = kurse.eur_je_usd(date(1990, 2, 15))   # zweite Stützstelle
+    mitte = kurse.eur_je_usd(date(1990, 1, 31))
+
+    assert abs(a - 2.0) < 1e-9, a
+    assert abs(b - 3.0) < 1e-9, b
+    # Strikt dazwischen – bei Fortschreibung wäre es exakt 2.0.
+    assert a < mitte < b, mitte
+    assert abs(mitte - 2.516) < 0.02, mitte
 
 
 def main():

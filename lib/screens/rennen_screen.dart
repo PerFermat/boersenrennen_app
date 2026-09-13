@@ -8,6 +8,7 @@ import '../render/kurs_chart_painter.dart';
 import '../render/rennstrecke_painter.dart';
 import '../spiel/rennen_controller.dart';
 import '../theme/arcade_theme.dart';
+import '../theme/geld.dart';
 import '../ui/candy_button.dart';
 import '../ui/tempo_regler.dart';
 import 'ergebnis_screen.dart';
@@ -48,7 +49,8 @@ class _RennenScreenState extends State<RennenScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
-    _controller = RennenController(engine: widget.engine, vsync: this);
+    _controller = RennenController(
+        engine: widget.engine, vsync: this, waehrung: widget.aktie.waehrung);
     // Painter einmalig bauen – nicht in build().
     _chartPainter = KursChartPainter(widget.engine,
         vorlauf: widget.vorlauf,
@@ -215,7 +217,7 @@ class _RennenScreenState extends State<RennenScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '${hud.kurs} €',
+                        '${hud.kurs} ${Geld.symbol(widget.aktie.waehrung)}',
                         style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.w800,

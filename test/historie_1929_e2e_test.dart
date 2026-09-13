@@ -221,6 +221,41 @@ void _menueTests() {
     }
   });
 
+  test('alles bis auf den S&P 500 ab 1927 liegt in Euro vor', () {
+    final nichtEuro = katalog.where((a) => a.waehrung != 'EUR').toList();
+
+    // Die Wechselkurskette reicht bis 1957 zurück. Über die Währungsreform
+    // von 1948 hinweg gibt es keinen sinnvollen Euro-Gegenwert, deshalb
+    // bleibt genau diese eine Reihe in Dollar.
+    expect(nichtEuro.map((a) => a.ticker), ['^GSPC']);
+    expect(nichtEuro.single.waehrung, 'USD');
+    expect(nichtEuro.single.umgerechnet, isFalse);
+  });
+
+  test('umgerechnet ist genau dann gesetzt, wenn die Notierung abweicht', () {
+    for (final a in katalog) {
+      if (a.umgerechnet) {
+        // Umgerechnet wird immer nach Euro, und nur aus einer Fremdwährung.
+        expect(a.waehrung, 'EUR', reason: a.ticker);
+        expect(a.notierung, isNot('EUR'), reason: a.ticker);
+      } else {
+        // Nicht umgerechnet heißt: Anzeige- und Notierungswährung sind gleich.
+        expect(a.waehrung, a.notierung, reason: a.ticker);
+      }
+    }
+
+    // Die deutschen Titel notieren ohnehin in Euro und werden nicht angefasst.
+    final sap = katalog.firstWhere((a) => a.ticker == 'SAP.DE');
+    expect(sap.notierung, 'EUR');
+    expect(sap.umgerechnet, isFalse);
+
+    // Der Nikkei ist der einzige Yen-Titel.
+    final n225 = katalog.firstWhere((a) => a.ticker == '^N225');
+    expect(n225.notierung, 'JPY');
+    expect(n225.umgerechnet, isTrue);
+    expect(n225.waehrung, 'EUR');
+  });
+
   test('Ticker sind im ganzen Katalog eindeutig', () {
     // Die gespleißten Reihen liegen neben der kurzen Reihe desselben ETF –
     // "XLK" allein wäre also doppelt vergeben. Der Ticker ist der Schlüssel,

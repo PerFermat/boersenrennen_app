@@ -18,6 +18,7 @@
 # =====================================================================
 
 import argparse
+import bisect
 import json
 import math
 import os
@@ -223,6 +224,149 @@ SPLEISS_POOL = [
     ("XLE",  "FSENX", "1985-01-01", "Energie-Sektor (ab 1985)",     "Themen-ETF", "xle_lang"),
     ("XLF",  "FIDSX", "1985-01-01", "Finanz-Sektor (ab 1985)",      "Themen-ETF", "xlf_lang"),
 ]
+
+
+# ---------------------------------------------------------------------------
+#  Währungsumrechnung nach Euro
+# ---------------------------------------------------------------------------
+#
+# Die App zeigt durchgängig Euro und rechnet mit deutschem Steuerrecht. Ein
+# US-Titel in Dollar zu belassen, hiesse dem Spieler eine Rendite zu zeigen,
+# die ein deutscher Anleger nie hatte.
+#
+# Wie gross der Unterschied ist, haengt am Zeitfenster: Ueber 1990-2026 hebt
+# sich der Wechselkurs fast auf (-0,02 Prozentpunkte pro Jahr). Ueber die
+# 5-Jahres-Fenster, die die App spielt, trägt er dagegen zwischen -12,7 und
+# +13,6 Prozentpunkten pro Jahr bei - mehr als die Aktienrisikopraemie.
+#
+# Quellen (FRED, keine Anmeldung noetig):
+#   DEXUSEU            USD je EUR, taeglich ab 1999-01-04
+#   CCUSMA02DEM618N    EUR je USD, monatlich ab 1957-01 - bereits auf Euro
+#                      verkettet: der Wert 2,1476 fuer 1957 ist 4,20 DM/USD
+#                      geteilt durch den festen Umrechnungskurs 1,95583
+#   DEXJPUS            JPY je USD, taeglich ab 1971-01-04 (fuer den Nikkei)
+#
+# Im Ueberlapp stimmen die beiden Euro-Reihen auf unter 1 % ueberein (die
+# monatliche ist ein Monatsdurchschnitt, die taegliche ein Stichtagskurs).
+FRED = "https://fred.stlouisfed.org/graph/fredgraph.csv?id="
+FX_EUR_USD_TAEGLICH = "DEXUSEU"
+FX_EUR_USD_MONATLICH = "CCUSMA02DEM618N"
+FX_JPY_USD_TAEGLICH = "DEXJPUS"
+
+# Erster Tag, ab dem die taegliche Euro-Reihe gilt.
+EURO_TAEGLICH_AB = date(1999, 1, 4)
+
+
+def _lade_fred(reihe):
+    """Holt eine FRED-Zeitreihe als {datum: wert}. Fehlwerte ('.') entfallen."""
+    import urllib.request
+
+    with urllib.request.urlopen(FRED + reihe, timeout=60) as antwort:
+        text = antwort.read().decode("utf-8")
+
+    zeilen = text.splitlines()
+    if not zeilen or "observation_date" not in zeilen[0]:
+        raise ValueError(f"FRED-Reihe {reihe} lieferte keine CSV-Daten")
+
+    werte = {}
+    for zeile in zeilen[1:]:
+        teile = zeile.split(",")
+        if len(teile) < 2 or teile[1] in (".", ""):
+            continue
+        werte[date.fromisoformat(teile[0])] = float(teile[1])
+    if not werte:
+        raise ValueError(f"FRED-Reihe {reihe} ist leer")
+    return werte
+
+
+class Wechselkurs:
+    """
+    Euro je Einheit Fremdwaehrung, taggenau.
+
+    Vor [EURO_TAEGLICH_AB] wird zwischen den Monatswerten **linear
+    interpoliert**, nicht fortgeschrieben: Ein Monatsdurchschnitt einfach
+    stehenzulassen erzeugte an jedem Monatsersten einen Sprung von rund 2 % -
+    der saehe in der Simulation aus wie ein Kursereignis, war aber keins.
+    """
+
+    def __init__(self, monatlich, taeglich_usd_je_eur, jpy_je_usd):
+        # Monatswerte gelten fuer den Monatsdurchschnitt -> Monatsmitte.
+        self._monat = sorted(
+            (d.replace(day=15), w) for d, w in monatlich.items()
+            if d < EURO_TAEGLICH_AB
+        )
+        self._tag = dict(sorted(
+            (d, 1.0 / w) for d, w in taeglich_usd_je_eur.items() if w > 0
+        ))
+        self._tage = sorted(self._tag)
+        self._jpy = dict(sorted(jpy_je_usd.items()))
+        self._jpy_tage = sorted(self._jpy)
+
+        self.erster_tag = min(self._monat[0][0], self._tage[0]) if self._monat else self._tage[0]
+        self.letzter_tag = max(self._tage[-1], self._monat[-1][0] if self._monat else self._tage[-1])
+        self.erster_tag_jpy = self._jpy_tage[0]
+
+    def _letzter_bekannter(self, tage, werte, d):
+        i = bisect.bisect_right(tage, d) - 1
+        return werte[tage[i]] if i >= 0 else None
+
+    def eur_je_usd(self, d):
+        if d >= EURO_TAEGLICH_AB:
+            return self._letzter_bekannter(self._tage, self._tag, d)
+        # Lineare Interpolation zwischen den benachbarten Monatsmitten.
+        i = bisect.bisect_right([x[0] for x in self._monat], d) - 1
+        if i < 0:
+            return None
+        if i + 1 >= len(self._monat):
+            return self._monat[i][1]
+        (d0, w0), (d1, w1) = self._monat[i], self._monat[i + 1]
+        anteil = (d - d0).days / (d1 - d0).days
+        return w0 + (w1 - w0) * anteil
+
+    def eur_je_jpy(self, d):
+        eur_usd = self.eur_je_usd(d)
+        jpy_usd = self._letzter_bekannter(self._jpy_tage, self._jpy, d)
+        if eur_usd is None or not jpy_usd:
+            return None
+        return eur_usd / jpy_usd
+
+    def faktor(self, waehrung, d):
+        if waehrung == "EUR":
+            return 1.0
+        if waehrung == "USD":
+            return self.eur_je_usd(d)
+        if waehrung == "JPY":
+            return self.eur_je_jpy(d)
+        raise ValueError(f"Unbekannte Waehrung {waehrung}")
+
+
+def waehrung_von(ticker):
+    """Notierungswaehrung eines Tickers."""
+    if ticker.endswith(".DE") or ticker == "^GDAXI":
+        return "EUR"
+    if ticker == "^N225":
+        return "JPY"
+    return "USD"
+
+
+def rechne_in_euro(werte, waehrung, kurse):
+    """
+    Rechnet [werte] nach Euro um.
+
+    Wirft ValueError, wenn der Wechselkurs nicht den ganzen Zeitraum abdeckt -
+    eine halb umgerechnete Reihe waere schlimmer als eine gar nicht
+    umgerechnete, weil der Bruch mittendrin wie ein Kurssprung aussaehe.
+    """
+    if waehrung == "EUR":
+        return werte
+
+    umgerechnet = []
+    for d, k in werte:
+        f = kurse.faktor(waehrung, d)
+        if f is None or f <= 0:
+            raise ValueError(f"Kein Wechselkurs fuer {d}")
+        umgerechnet.append((d, k * f))
+    return umgerechnet
 
 
 def _korrelation(xs, ys):
@@ -440,8 +584,24 @@ def main():
     auffaellig_gesamt = 0
     qualitaet_gesamt = 0
 
-    def verarbeite(ticker, name, kategorie, gruppe, werte, datei, zusatz=None):
-        """Prüfen, kodieren, für den späteren Schreibvorgang vormerken."""
+    # Wechselkurse zuerst: Ohne sie wäre der ganze Export in gemischten
+    # Währungen und damit unbrauchbar – lieber sofort abbrechen, als 54 Dateien
+    # zu laden und dann festzustellen, dass keine umgerechnet werden kann.
+    print("-> Wechselkurse (FRED) ...", flush=True)
+    try:
+        kurse = Wechselkurs(
+            _lade_fred(FX_EUR_USD_MONATLICH),
+            _lade_fred(FX_EUR_USD_TAEGLICH),
+            _lade_fred(FX_JPY_USD_TAEGLICH),
+        )
+    except Exception as err:
+        sys.exit(f"ABBRUCH: Wechselkurse nicht ladbar ({err}). assets/ bleibt unverändert.")
+    print(f"   Euro-Kette {kurse.erster_tag} – {kurse.letzter_tag}, "
+          f"Yen ab {kurse.erster_tag_jpy}")
+
+    def verarbeite(ticker, name, kategorie, gruppe, werte, datei, zusatz=None,
+                   fx_ticker=None):
+        """Prüfen, umrechnen, kodieren, für den Schreibvorgang vormerken."""
         nonlocal auffaellig_gesamt, qualitaet_gesamt
 
         if len(werte) < MIN_TAGE:
@@ -452,8 +612,27 @@ def main():
             print(f"   Nur {spanne_jahre:.1f} Jahre Historie – übersprungen.")
             return
 
-        auffaellig_gesamt += pruefe_auffaellige(ticker, werte)
+        # Die Qualitätsprüfung läuft auf der **Originalreihe**: Nach der
+        # Umrechnung sind zwei aufeinanderfolgende Kurse nie mehr exakt
+        # gleich, weil sich der Wechselkurs bewegt – eingefrorene Strecken
+        # wie beim Nikkei oder den Fidelity-Fonds wären dann unsichtbar.
         qualitaet_gesamt += pruefe_reihenqualitaet(ticker, werte)
+
+        waehrung = waehrung_von(fx_ticker or ticker)
+        try:
+            werte = rechne_in_euro(werte, waehrung, kurse)
+            umgerechnet = waehrung != "EUR"
+            anzeige = "EUR"
+        except ValueError as err:
+            # Kein stiller Rückfall: Wer die Reihe unumgerechnet ausliefert,
+            # muss das im index.json sehen und in der App anzeigen können.
+            print(f"   KEINE UMRECHNUNG ({err}) – Reihe bleibt in {waehrung}.")
+            umgerechnet = False
+            anzeige = waehrung
+
+        # Auffällige Tagesbewegungen dagegen auf der umgerechneten Reihe –
+        # das ist, was der Spieler sieht.
+        auffaellig_gesamt += pruefe_auffaellige(ticker, werte)
 
         try:
             daten = baue_bin(werte)
@@ -471,6 +650,9 @@ def main():
             "ersterTag": werte[0][0].isoformat(),
             "letzterTag": werte[-1][0].isoformat(),
             "quelle": "bundled",
+            "waehrung": anzeige,
+            "notierung": waehrung,
+            "umgerechnet": umgerechnet,
         }
         eintrag.update(zusatz or {})
         fertig.append((datei, daten, eintrag))
@@ -519,6 +701,9 @@ def main():
                 "spleissKorrelation": round(korr, 4),
                 "spleissTrackdiffPp": round(trackdiff, 3),
             },
+            # Der zusammengesetzte Ticker sagt nichts über die Währung –
+            # dafür zählt der ETF selbst. Beide Reihen notieren in Dollar.
+            fx_ticker=ticker,
         )
 
     # Abbruch-Guard: ein yfinance-Ausfall darf den vorhandenen Datenbestand

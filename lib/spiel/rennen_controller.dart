@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 
 import '../domain/rennen_engine.dart';
 import '../theme/arcade_theme.dart';
+import '../theme/geld.dart';
 import 'kamera.dart';
 import 'laeufer_daten.dart';
 import 'weltkulisse.dart';
@@ -104,10 +105,15 @@ class RennenController {
   /// Wird vom Painter direkt gelesen (gleiches Muster wie [angezeigteWerte]).
   final List<double> stolperIntensitaet;
 
-  static final _euro = NumberFormat.currency(locale: 'de_DE', symbol: '€', decimalDigits: 0);
+  /// Währung der gespielten Runde – steuert HUD, Kursanzeige und die
+  /// Meilenstein-Schilder auf der Strecke (siehe [Geld]).
+  final String waehrung;
+
+  NumberFormat get _euro => Geld.betrag(waehrung, nachkomma: 0);
   static final _kursFormat = NumberFormat('#,##0.00', 'de_DE');
 
-  RennenController({required this.engine, required this.vsync})
+  RennenController(
+      {required this.engine, required this.vsync, this.waehrung = Geld.standard})
       : anzahlLaeufer = engine.wuerfelAktiv ? 4 : 3,
         angezeigteWerte = List.filled(engine.wuerfelAktiv ? 4 : 3, 0),
         _stolperRest = List.filled(engine.wuerfelAktiv ? 4 : 3, 0),

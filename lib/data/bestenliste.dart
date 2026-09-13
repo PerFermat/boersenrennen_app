@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../theme/geld.dart';
+
 /// Ein Ergebnis-Eintrag der lokalen Bestenliste.
 /// Felder wie in der `bestenliste`-Tabelle der Web-Version, nur mit Ticker
 /// statt Fremdschlüssel (auf dem Gerät gibt es keine `aktien`-Tabelle).
@@ -30,6 +32,14 @@ class BestenlisteEintrag {
   /// einzigen Trade (siehe [RundenAuswertung]/Monte-Carlo).
   final double? perzentil;
 
+  /// Währung der Endbeträge dieses Eintrags.
+  ///
+  /// Nötig, weil die Liste Runden verschiedener Titel nebeneinander zeigt und
+  /// nicht alle in Euro laufen (siehe [Geld]). Einträge aus der Zeit vor der
+  /// Währungsumrechnung tragen das Feld nicht – für die ist Euro richtig,
+  /// denn damals wurde ausnahmslos Euro angezeigt.
+  final String waehrung;
+
   const BestenlisteEintrag({
     required this.spielername,
     required this.ticker,
@@ -45,6 +55,7 @@ class BestenlisteEintrag {
     required this.erstelltAm,
     this.endbetragWuerfel,
     this.perzentil,
+    this.waehrung = Geld.standard,
   });
 
   Map<String, dynamic> zuJson() => {
@@ -62,6 +73,7 @@ class BestenlisteEintrag {
         'erstelltAm': erstelltAm.toIso8601String(),
         'endbetragWuerfel': endbetragWuerfel,
         'perzentil': perzentil,
+        'waehrung': waehrung,
       };
 
   factory BestenlisteEintrag.vonJson(Map<String, dynamic> j) => BestenlisteEintrag(
@@ -77,6 +89,7 @@ class BestenlisteEintrag {
         scoreVsInvestor: (j['scoreVsInvestor'] as num).toDouble(),
         scoreVsSicherheit: (j['scoreVsSicherheit'] as num).toDouble(),
         erstelltAm: DateTime.parse(j['erstelltAm'] as String),
+        waehrung: (j['waehrung'] as String?) ?? Geld.standard,
         // Fehlt bei Einträgen aus der Zeit vor dem Würfel-Investor -> null.
         endbetragWuerfel: (j['endbetragWuerfel'] as num?)?.toDouble(),
         // Fehlt bei Einträgen aus der Zeit vor Einführung des Perzentils -> null.

@@ -3,6 +3,7 @@ import 'package:intl/intl.dart' hide TextDirection;
 
 import '../domain/monte_carlo.dart';
 import '../theme/arcade_theme.dart';
+import '../theme/geld.dart';
 
 /// Zeichnet einen horizontalen Balken mit p10/Median/p90-Markierungen und der
 /// Position des Spielers – die visuelle Einordnung zur Monte-Carlo-Verteilung.
@@ -13,10 +14,14 @@ class MonteCarloPainter extends CustomPainter {
   final MonteCarloErgebnis ergebnis;
   final double spielerEndwert;
 
-  MonteCarloPainter(this.ergebnis, this.spielerEndwert);
+  /// Währung der Runde – die Achsenbeschriftung muss dieselbe zeigen wie der
+  /// Rest des Ergebnis-Screens.
+  final String waehrung;
 
-  static final _euroFormat = NumberFormat.compactCurrency(
-      locale: 'de_DE', symbol: '€', decimalDigits: 0);
+  MonteCarloPainter(this.ergebnis, this.spielerEndwert,
+      {this.waehrung = Geld.standard});
+
+  NumberFormat get _euroFormat => Geld.kompakt(waehrung);
 
   /// Textlayout ist vergleichsweise teuer, deshalb gecacht (gleiches Muster
   /// wie in den übrigen Painters dieser App).

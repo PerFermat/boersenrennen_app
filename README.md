@@ -376,7 +376,7 @@ python3 -m venv .venv
 ./.venv/bin/python tools/export_kursdaten.py
 ```
 
-Das Skript lädt ab 1995-01-01 mit `auto_adjust=True` (Dividenden eingerechnet, damit
+Das Skript lädt die Wechselkurse von der FRED und die Kurse ab 1995-01-01 mit `auto_adjust=True` (Dividenden eingerechnet, damit
 Buy-and-Hold die echte Gesamtrendite abbildet) und schreibt je Aktie eine `.bin`
 plus ein gemeinsames `index.json`. Der `AKTIEN_POOL` in
 [`export_kursdaten.py`](tools/export_kursdaten.py) trägt für jeden Titel neben dem
@@ -457,6 +457,58 @@ blendet einen Hinweis ein – aber **nur**, wenn die tatsächlich gespielte Rund
 den gespleißten Teil reicht. Ein Vermerk an jedem Titel wäre schnell
 Hintergrundrauschen, das niemand mehr liest.
 
+### Währungsumrechnung nach Euro
+
+Die App zeigt durchgängig Euro und rechnet mit deutschem Steuerrecht. Einen
+US-Titel in Dollar zu belassen, hieße dem Spieler eine Rendite zu zeigen, die ein
+deutscher Anleger nie hatte. Der Exporter rechnet deshalb **beim Erzeugen der
+Assets** um – zur Laufzeit gibt es keine Wechselkurse und keinen Rechenaufwand.
+
+Wie groß der Effekt ist, hängt am Zeitfenster. Über 1990–2026 hebt er sich fast
+auf (−0,02 Prozentpunkte pro Jahr), über die Fenster, die die App tatsächlich
+spielt, nicht:
+
+| Fenster | Median | 5 %–95 % | min / max |
+|---|---|---|---|
+| 5 Jahre | −0,85 | −7,62 … +7,84 | −12,67 / +13,56 |
+| 10 Jahre | −0,37 | −5,06 … +2,84 | −8,18 / +4,42 |
+| 20 Jahre | −0,82 | −3,44 … +0,88 | −4,30 / +1,33 |
+
+(Beitrag des Wechselkurses in Prozentpunkten pro Jahr, rollierende Fenster ab
+1971.) In der Spitze ist das mehr als die Aktienrisikoprämie – ohne Umrechnung
+wäre ein erheblicher Teil des Rundenergebnisses reine Währungsbewegung, die dem
+Titel zugeschrieben würde.
+
+Die Kette stammt von der **FRED** (St. Louis Fed, keine Anmeldung nötig):
+
+- `DEXUSEU` – USD je EUR, täglich ab 1999-01-04
+- `CCUSMA02DEM618N` – EUR je USD, monatlich ab 1957-01, bereits auf Euro
+  verkettet (der Wert 2,1476 für 1957 ist 4,20 DM/USD ÷ 1,95583)
+- `DEXJPUS` – JPY je USD, täglich ab 1971-01-04, für den Nikkei
+
+Im Überlapp stimmen die beiden Euro-Reihen auf unter 1 % überein. Vor 1999 wird
+zwischen den Monatswerten **linear interpoliert**: Einen Monatsdurchschnitt
+fortzuschreiben erzeugte an jedem Monatsersten einen Sprung von rund 2 %, der in
+der Simulation nicht von einem Kursereignis zu unterscheiden wäre.
+
+Fehlt für auch nur einen Tag ein Kurs, bricht die Umrechnung für diese Reihe ab
+und der Titel bleibt in seiner Notierungswährung – eine halb umgerechnete Reihe
+hätte mittendrin einen Bruch, der wie ein Kurssprung aussähe. `index.json` trägt
+dafür `waehrung`, `notierung` und `umgerechnet`.
+
+**53 der 54 Titel liegen als Euro im Paket.** Die Ausnahme ist der S&P 500 ab
+1927: Die Kette reicht nur bis 1957, und über die Währungsreform von 1948 hinweg
+gibt es keinen sinnvollen Euro-Gegenwert – Reichsmark-Guthaben wurden dabei
+weitgehend entwertet. Diese Reihe bleibt in Dollar und wird auch so beschriftet;
+`lib/theme/geld.dart` liefert Symbol und Format je Währung, und der
+Bestenlisten-Eintrag speichert sie mit, weil dort Runden verschiedener Titel
+nebeneinanderstehen.
+
+Die Qualitätsprüfung auf eingefrorene Kurse läuft weiterhin auf der
+**Originalreihe**: Nach der Umrechnung sind zwei aufeinanderfolgende Kurse nie
+mehr exakt gleich, weil sich der Wechselkurs bewegt – Fälle wie der Nikkei der
+1960er wären dann unsichtbar.
+
 **Binärformat** (little-endian): Magic `BRK1`, `int32` Basis-Epochtag,
 `uint32` Anzahl, dann `uint16[]` Tages-Offsets und `float32[]` Schlusskurse.
 Absolute Offsets statt Deltas – dadurch bleibt die Suche nach dem Startdatum eine
@@ -493,15 +545,15 @@ trotzdem mit Exit-Code 0.
 
 ```bash
 flutter pub get
-flutter test        # 200 Tests: Simulation, Kamera, Kulisse, Codec, Rundenwahl, Scores,
+flutter test        # 202 Tests: Simulation, Kamera, Kulisse, Codec, Rundenwahl, Scores,
                     # Rundenauswertung, Monte-Carlo, Trade-Log, Abgeltungsteuer,
                     # Inflation, Würfel-Investor, Bestenliste, kontrafaktische
                     # Vergleiche, Behavior Gap, Verhaltensprofil, Erfolge,
                     # historische Reihen vor 1970 und die Menü-Auswahl
                     # (beides gegen die echten Assets)
 
-./.venv/bin/python tools/test_spleiss.py   # 7 Tests der Spleiß-Mechanik
-                                           # (synthetische Reihen, kein Netz)
+./.venv/bin/python tools/test_export.py    # 12 Tests: Spleiß-Mechanik und
+                                          # Währungsumrechnung (kein Netz nötig)
 flutter analyze
 flutter run         # Emulator oder angestecktes Gerät
 flutter build apk --release --split-per-abi

@@ -1,4 +1,5 @@
 import '../domain/kursreihe.dart';
+import '../theme/geld.dart';
 
 /// Ein Eintrag aus assets/kurse/index.json.
 class AktienEintrag {
@@ -26,6 +27,19 @@ class AktienEintrag {
   /// Quellenkette von alt nach neu, leer bei ungespleißten Reihen.
   final List<String> quellen;
 
+  /// Währung, in der die Kurse im App-Paket **liegen** – das ist die, in der
+  /// die Runde angezeigt und gerechnet wird.
+  final String waehrung;
+
+  /// Währung, in der der Titel an seiner Börse notiert.
+  final String notierung;
+
+  /// Ob der Exporter die Reihe nach Euro umgerechnet hat.
+  ///
+  /// `false` bei Titeln, die ohnehin in Euro notieren – und beim S&P 500 ab
+  /// 1927, für den die Wechselkurskette nicht weit genug zurückreicht.
+  final bool umgerechnet;
+
   const AktienEintrag({
     required this.ticker,
     required this.name,
@@ -38,6 +52,9 @@ class AktienEintrag {
     required this.quelle,
     this.spleissAb,
     this.quellen = const [],
+    this.waehrung = Geld.standard,
+    this.notierung = Geld.standard,
+    this.umgerechnet = false,
   });
 
   /// Ob die Reihe vor [spleissAb] aus einer anderen Quelle stammt.
@@ -70,6 +87,9 @@ class AktienEintrag {
             ? null
             : DateTime.parse(j['spleissAb'] as String),
         quellen: (j['quellen'] as List?)?.cast<String>() ?? const [],
+        waehrung: (j['waehrung'] as String?) ?? Geld.standard,
+        notierung: (j['notierung'] as String?) ?? Geld.standard,
+        umgerechnet: (j['umgerechnet'] as bool?) ?? false,
       );
 
   /// Verfügbare Historie in Jahren.

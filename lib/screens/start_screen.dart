@@ -46,9 +46,10 @@ const _gruppenLabel = <String?, String>{
 const _gruppenHinweis = <String?, String>{
   'Historisch': 'Reicht bis 1927 zurück: Weltwirtschaftskrise, Ölkrise, '
       'japanische Blase. Die Indizes sind Kursindizes ohne Dividenden; die '
-      'Sektor-Reihen zeigen vor Auflage des ETF einen Vorgängerfonds. Die '
-      'Kaufkraftrechnung bleibt in alten Runden aus (Inflationsdaten erst ab '
-      '1994), die Steuerlogik rechnet mit heutigem Recht.',
+      'Sektor-Reihen zeigen vor Auflage des ETF einen Vorgängerfonds. Der '
+      'S&P 500 rechnet in Dollar – vor 1957 gibt es keinen Euro-Gegenwert. '
+      'Die Kaufkraftrechnung bleibt in alten Runden aus (Inflationsdaten erst '
+      'ab 1992), die Steuerlogik rechnet mit heutigem Recht.',
 };
 
 class _StartScreenState extends State<StartScreen> {
