@@ -11,6 +11,10 @@ Drei Anlagestrategien treten auf **derselben**, dem Spieler verborgenen Zufallsa
 | 🟡 **Sicherheit** | legt alles zu einem festen, vor der Runde gewählten Zins an. |
 | 🟣 **Würfel-Investor** (optional, Default an) | schaltet bei jedem Monatswechsel mit 15 % Wahrscheinlichkeit zwischen investiert und Cash um – reiner Zufall, keine Strategie. Zahlt dieselbe Slippage und Steuer wie der Spieler, sonst wäre der Vergleich unfair. Gewinnt er gelegentlich, ist das der Punkt: es zerstört die Illusion, ein Sieg beweise Können. |
 
+| Vor dem Spiel | Spiel selbst | Auswertung |
+|:---:|:---:|:---:|
+| ![Startbildschirm](docs/screenshots/01_start.png) | ![Rennbahn während einer laufenden Runde](docs/screenshots/02_spiel.png) | ![Auswertung nach Rundenende](docs/screenshots/03_auswertung.png) |
+
 Alle starten mit 1000 €, monatlich kommen 100 € dazu. Im Startmenü lässt sich
 wählen, aus welcher Gruppe die Zufallsaktie kommt: **Einzelaktien**, **Welt-ETFs**
 (z. B. Vanguard Total World, MSCI ACWI/World) oder **Themen/Länder-ETFs**
