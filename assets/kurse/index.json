@@ -467,17 +467,6 @@
       "quelle": "bundled"
     },
     {
-      "ticker": "^GSPC",
-      "name": "S&P 500",
-      "kategorie": "Index",
-      "gruppe": "Index-Rohstoff",
-      "datei": "gspc.bin",
-      "anzahl": 24791,
-      "ersterTag": "1927-12-30",
-      "letzterTag": "2026-09-11",
-      "quelle": "bundled"
-    },
-    {
       "ticker": "^DJI",
       "name": "Dow Jones Industrial Average",
       "kategorie": "Index",
@@ -500,10 +489,21 @@
       "quelle": "bundled"
     },
     {
-      "ticker": "^IXIC",
-      "name": "Nasdaq Composite",
+      "ticker": "^GSPC",
+      "name": "S&P 500 (ab 1927)",
       "kategorie": "Index",
-      "gruppe": "Index-Rohstoff",
+      "gruppe": "Historisch",
+      "datei": "gspc.bin",
+      "anzahl": 24791,
+      "ersterTag": "1927-12-30",
+      "letzterTag": "2026-09-11",
+      "quelle": "bundled"
+    },
+    {
+      "ticker": "^IXIC",
+      "name": "Nasdaq Composite (ab 1971)",
+      "kategorie": "Index",
+      "gruppe": "Historisch",
       "datei": "ixic.bin",
       "anzahl": 14017,
       "ersterTag": "1971-02-05",
@@ -512,9 +512,9 @@
     },
     {
       "ticker": "^N225",
-      "name": "Nikkei 225",
+      "name": "Nikkei 225 (ab 1980)",
       "kategorie": "Index",
-      "gruppe": "Index-Rohstoff",
+      "gruppe": "Historisch",
       "datei": "n225.bin",
       "anzahl": 11483,
       "ersterTag": "1980-01-04",

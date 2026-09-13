@@ -369,7 +369,11 @@ Ticker auch eine **Gruppe** ein (`Einzelaktien` / `Welt-ETF` / `Themen-Länder-E
 ### Historische Indexreihen vor 1995
 
 Drei Indizes reichen bewusst weiter zurück als `START_DATUM`; die Ausnahmen stehen
-in `HISTORIE_AB`:
+in `HISTORIE_AB`. Sie bilden im Startmenü die eigene Gruppe **„Historisch"** –
+über „Zufällig" landet man nur in 3–5 % der Runden vor 1995, die
+Weltwirtschaftskrise wäre sonst Glückssache. Die eigene Gruppe ist zugleich der
+Ort, an dem die Einschränkungen dieser Reihen benannt werden können, weil die
+Wahl bewusst erfolgt.
 
 | Reihe | ab | öffnet |
 |---|---|---|
@@ -431,11 +435,12 @@ trotzdem mit Exit-Code 0.
 
 ```bash
 flutter pub get
-flutter test        # 190 Tests: Simulation, Kamera, Kulisse, Codec, Rundenwahl, Scores,
+flutter test        # 193 Tests: Simulation, Kamera, Kulisse, Codec, Rundenwahl, Scores,
                     # Rundenauswertung, Monte-Carlo, Trade-Log, Abgeltungsteuer,
                     # Inflation, Würfel-Investor, Bestenliste, kontrafaktische
                     # Vergleiche, Behavior Gap, Verhaltensprofil, Erfolge,
-                    # historische Reihen vor 1970 (gegen das echte Asset)
+                    # historische Reihen vor 1970 und die Menü-Auswahl
+                    # (beides gegen die echten Assets)
 flutter analyze
 flutter run         # Emulator oder angestecktes Gerät
 flutter build apk --release --split-per-abi

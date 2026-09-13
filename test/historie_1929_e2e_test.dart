@@ -1,9 +1,12 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:boersenrennen_app/data/aktien_katalog.dart';
 import 'package:boersenrennen_app/data/kursdaten_codec.dart';
+import 'package:boersenrennen_app/data/kursdaten_repository.dart';
 import 'package:boersenrennen_app/domain/auswertung.dart';
 import 'package:boersenrennen_app/domain/inflation.dart';
 import 'package:boersenrennen_app/domain/kursreihe.dart';
@@ -133,6 +136,64 @@ void main() {
       expect(p.istBelastbar, isFalse);
       expect(Inflation.erstesJahr, greaterThan(1939));
     });
+  });
+
+  group('Auswahl im Startmenü', _menueTests);
+}
+
+/// Deckt die im Startmenü angebotenen Auswahlen gegen den echten Katalog ab.
+///
+/// Der Fall „Gruppe angeboten, aber kein Titel mit genug Historie" ist genau
+/// der, den P3 sichtbar gemacht hat. Hier wird festgehalten, **welche**
+/// Kombinationen das betrifft – neue Daten dürfen die Liste verkürzen, aber
+/// nicht unbemerkt verlängern.
+void _menueTests() {
+  const gruppen = [null, 'Einzelaktien', 'Welt-ETF', 'Themen-Länder-ETF', 'Historisch'];
+  const dauern = [5, 10, 20];
+
+  late List<AktienEintrag> katalog;
+
+  setUpAll(() {
+    final json =
+        jsonDecode(File('assets/kurse/index.json').readAsStringSync()) as Map<String, dynamic>;
+    katalog = (json['aktien'] as List)
+        .cast<Map<String, dynamic>>()
+        .map(AktienEintrag.vonJson)
+        .toList();
+  });
+
+  test('die Gruppe „Historisch" ist für jede angebotene Rundenlänge spielbar', () {
+    final repo = KursdatenRepository();
+    for (final jahre in dauern) {
+      expect(
+        repo.hatSpielbareAktie(katalog, minJahre: jahre.toDouble(), gruppe: 'Historisch'),
+        isTrue,
+        reason: 'Historisch + $jahre Jahre hat keinen Titel',
+      );
+    }
+  });
+
+  test('unspielbar sind genau die bekannten Kombinationen', () {
+    final repo = KursdatenRepository();
+    final unspielbar = <String>[
+      for (final g in gruppen)
+        for (final j in dauern)
+          if (!repo.hatSpielbareAktie(katalog, minJahre: j.toDouble(), gruppe: g))
+            '${g ?? "Zufällig"} + $j',
+    ];
+
+    // Der älteste Welt-ETF im Pool (VEU) startet 2007 – 20 Jahre gibt die
+    // Gruppe schlicht nicht her. Der Startbildschirm meldet das seit P3.
+    expect(unspielbar, ['Welt-ETF + 20']);
+  });
+
+  test('jeder Titel der Gruppe „Historisch" beginnt deutlich vor 1995', () {
+    final hist = katalog.where((a) => a.gruppe == 'Historisch').toList();
+
+    expect(hist, hasLength(3));
+    for (final a in hist) {
+      expect(a.ersterTag.year, lessThan(1990), reason: a.ticker);
+    }
   });
 }
 

@@ -108,6 +108,16 @@ GRUPPE_WELT_ETF = "Welt-ETF"
 GRUPPE_THEMEN_LAENDER_ETF = "Themen-Länder-ETF"
 GRUPPE_INDEX_ROHSTOFF = "Index-Rohstoff"
 
+# Eigene Gruppe, damit die alten Zeiträume *gezielt* wählbar sind. Über
+# "Zufällig" landet man nur in rund 3-5 % der Runden vor 1995 – die
+# Weltwirtschaftskrise wäre sonst reine Glückssache.
+#
+# Die Trennung hat einen zweiten Zweck: Für diese Reihen gelten Einschränkungen,
+# die im Startmenü genannt werden können, weil die Wahl bewusst erfolgt –
+# Preisindex ohne Dividenden, keine Kaufkraftrechnung (Destatis ab 1994),
+# heutiges Steuerrecht auf historische Kurse.
+GRUPPE_HISTORISCH = "Historisch"
+
 AKTIEN_POOL = [
     # ---- Einzelaktien: DAX ----
     ("SAP.DE",  "SAP SE",                       "DAX", GRUPPE_EINZELAKTIEN),
@@ -158,11 +168,12 @@ AKTIEN_POOL = [
     ("ICLN",    "iShares Global Clean Energy ETF", "Themen-ETF", GRUPPE_THEMEN_LAENDER_ETF),
     # ---- Indizes & Rohstoffe ----
     ("^GDAXI",  "DAX",                          "Index", GRUPPE_INDEX_ROHSTOFF),
-    ("^GSPC",   "S&P 500",                      "Index", GRUPPE_INDEX_ROHSTOFF),
     ("^DJI",    "Dow Jones Industrial Average", "Index", GRUPPE_INDEX_ROHSTOFF),
     ("^NDX",    "Nasdaq 100",                   "Index", GRUPPE_INDEX_ROHSTOFF),
-    ("^IXIC",   "Nasdaq Composite",             "Index", GRUPPE_INDEX_ROHSTOFF),
-    ("^N225",   "Nikkei 225",                   "Index", GRUPPE_INDEX_ROHSTOFF),
+    # ---- Historisch: Reihen, die weit vor 1995 beginnen (siehe HISTORIE_AB) ----
+    ("^GSPC",   "S&P 500 (ab 1927)",            "Index", GRUPPE_HISTORISCH),
+    ("^IXIC",   "Nasdaq Composite (ab 1971)",   "Index", GRUPPE_HISTORISCH),
+    ("^N225",   "Nikkei 225 (ab 1980)",         "Index", GRUPPE_HISTORISCH),
     ("GC=F",    "Gold",                         "Rohstoff", GRUPPE_INDEX_ROHSTOFF),
     ("SI=F",    "Silber",                       "Rohstoff", GRUPPE_INDEX_ROHSTOFF),
     ("CL=F",    "Rohöl WTI",                    "Rohstoff", GRUPPE_INDEX_ROHSTOFF),

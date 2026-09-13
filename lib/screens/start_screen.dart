@@ -22,12 +22,30 @@ class StartScreen extends StatefulWidget {
 }
 
 /// `null` bedeutet "alle Gruppen gemeinsam" (Zufällig).
-const _gruppen = <String?>[null, 'Einzelaktien', 'Welt-ETF', 'Themen-Länder-ETF'];
+const _gruppen = <String?>[
+  null,
+  'Einzelaktien',
+  'Welt-ETF',
+  'Themen-Länder-ETF',
+  'Historisch',
+];
 const _gruppenLabel = <String?, String>{
   null: 'Zufällig',
   'Einzelaktien': 'Einzelaktien',
   'Welt-ETF': 'Welt-ETFs',
   'Themen-Länder-ETF': 'Themen/Länder-ETFs',
+  'Historisch': 'Historisch',
+};
+
+/// Hinweise, die nur für einzelne Gruppen gelten.
+///
+/// Über "Zufällig" sind die historischen Reihen nur in rund 3–5 % der Runden
+/// dabei; wer sie gezielt wählt, soll wissen, worin sie sich unterscheiden.
+const _gruppenHinweis = <String?, String>{
+  'Historisch': 'S&P 500 ab 1927, Nasdaq ab 1971, Nikkei ab 1980 – '
+      'Weltwirtschaftskrise, Ölkrise, japanische Blase. Kursindizes ohne '
+      'Dividenden; die Kaufkraftrechnung bleibt hier aus (Inflationsdaten erst '
+      'ab 1994), und die Steuerlogik rechnet mit heutigem Recht.',
 };
 
 class _StartScreenState extends State<StartScreen> {
@@ -199,6 +217,13 @@ class _StartScreenState extends State<StartScreen> {
                     ),
                 ],
               ),
+              if (_gruppenHinweis[_gruppe] != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  _gruppenHinweis[_gruppe]!,
+                  style: const TextStyle(fontSize: 11, color: ArcadeFarben.tinteHell),
+                ),
+              ],
               const SizedBox(height: 16),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
