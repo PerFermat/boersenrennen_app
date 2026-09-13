@@ -7,7 +7,7 @@ import '../domain/kursreihe.dart';
 /// Aufbau (little-endian):
 /// ```
 /// 'BRK1'                      4 B  Magic
-/// uint32 basisEpochTag             Epochtag des ersten Kurses
+/// int32  basisEpochTag             Epochtag des ersten Kurses (ggf. negativ)
 /// uint32 anzahl
 /// uint16[anzahl] tagOffset         Tage seit Basistag, streng aufsteigend
 /// (Padding auf 4-Byte-Grenze)
@@ -29,7 +29,15 @@ class KursdatenCodec {
       throw const FormatException('Ungültige Kursdatei (Magic erwartet BRK1).');
     }
 
-    final basis = daten.getUint32(4, Endian.little);
+    // Signed, weil Reihen vor dem 1970-01-01 (S&P 500 ab 1927) einen negativen
+    // Basis-Epochtag haben.
+    //
+    // Mit getUint32 käme hier dasselbe heraus: der Wert landet unten in einem
+    // Int32List, und dessen Abschneiden auf 32 Bit ist arithmetisch genau die
+    // Vorzeichen-Interpretation. Darauf soll sich aber niemand verlassen
+    // müssen, der die Stelle liest – das Feld *ist* vorzeichenbehaftet, also
+    // wird es auch so gelesen.
+    final basis = daten.getInt32(4, Endian.little);
     final anzahl = daten.getUint32(8, Endian.little);
 
     // Eine leere Reihe ließe `RennenEngine` sofort über `reihe.kurs(0)`

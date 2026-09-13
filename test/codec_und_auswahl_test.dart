@@ -21,7 +21,8 @@ ByteData baueBin(int basis, List<int> offsets, List<double> kurse) {
   b.setUint8(1, 0x52); // 'R'
   b.setUint8(2, 0x4B); // 'K'
   b.setUint8(3, 0x31); // '1'
-  b.setUint32(4, basis, Endian.little);
+  // setInt32 spiegelt das "<i" des Exporters – nötig für Reihen vor 1970.
+  b.setInt32(4, basis, Endian.little);
   b.setUint32(8, anzahl, Endian.little);
 
   for (var i = 0; i < anzahl; i++) {
@@ -48,6 +49,48 @@ void main() {
       expect(reihe.kurs(0), closeTo(100.0, 1e-4));
       expect(reihe.kurs(1), closeTo(101.5, 1e-4));
       expect(reihe.kurs(2), closeTo(99.25, 1e-4));
+    });
+
+    test('dekodiert Reihen, die vor 1970 beginnen (negativer Basistag)', () {
+      // Charakterisierungstest, kein Regressionstest: der Codec kam mit
+      // negativen Basistagen schon vorher zurecht (Int32List-Truncation).
+      // Festgehalten wird hier die Eigenschaft, auf die sich die historischen
+      // Reihen verlassen – nicht die Behebung eines Fehlers.
+      final basis = Kursreihe.zuEpochTag(DateTime.utc(1929, 10, 24));
+      expect(basis, lessThan(0));
+
+      final reihe = KursdatenCodec.dekodiere(
+        baueBin(basis, [0, 4, 5], [25.75, 22.74, 20.43]),
+      );
+
+      expect(Kursreihe.zuDatum(reihe.epochTag(0)), DateTime.utc(1929, 10, 24));
+      expect(Kursreihe.zuDatum(reihe.epochTag(1)), DateTime.utc(1929, 10, 28));
+      expect(Kursreihe.zuDatum(reihe.epochTag(2)), DateTime.utc(1929, 10, 29));
+      expect(reihe.kurs(2), closeTo(20.43, 1e-4));
+    });
+
+    test('binaereSuche trägt über die Epochengrenze hinweg', () {
+      // Eine Reihe, die 1970 überspannt, hat negative *und* positive
+      // Epochtage. Die Binärsuche und die Aufsteigend-Prüfung des Codecs
+      // müssen über den Vorzeichenwechsel hinweg monoton bleiben – sonst
+      // fände der Rundenwähler in genau diesen Reihen den Startindex nicht.
+      final basis = Kursreihe.zuEpochTag(DateTime.utc(1965, 1, 5));
+      final tage = [
+        0,
+        Kursreihe.zuEpochTag(DateTime.utc(1969, 12, 31)) - basis,
+        Kursreihe.zuEpochTag(DateTime.utc(1970, 1, 2)) - basis,
+        Kursreihe.zuEpochTag(DateTime.utc(1975, 6, 10)) - basis,
+      ];
+      final reihe = KursdatenCodec.dekodiere(
+        baueBin(basis, tage, [1.0, 2.0, 3.0, 4.0]),
+      );
+
+      for (var i = 1; i < reihe.laenge; i++) {
+        expect(reihe.epochTag(i), greaterThan(reihe.epochTag(i - 1)));
+      }
+      expect(reihe.binaereSuche(Kursreihe.zuEpochTag(DateTime.utc(1965, 1, 5))), 0);
+      expect(reihe.binaereSuche(Kursreihe.zuEpochTag(DateTime.utc(1970, 1, 1))), 2);
+      expect(reihe.binaereSuche(Kursreihe.zuEpochTag(DateTime.utc(1990, 1, 1))), 4);
     });
 
     test('lehnt eine Datei mit falschem Magic ab', () {

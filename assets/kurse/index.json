@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "erzeugtAm": "2026-09-07",
+  "erzeugtAm": "2026-09-13",
   "quelle": "yfinance",
   "kursAnpassung": "auto_adjust",
   "aktien": [
@@ -10,9 +10,9 @@
       "kategorie": "DAX",
       "gruppe": "Einzelaktien",
       "datei": "sap_de.bin",
-      "anzahl": 7269,
+      "anzahl": 7273,
       "ersterTag": "1998-04-09",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -21,9 +21,9 @@
       "kategorie": "DAX",
       "gruppe": "Einzelaktien",
       "datei": "sie_de.bin",
-      "anzahl": 7638,
+      "anzahl": 7642,
       "ersterTag": "1996-11-08",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -32,9 +32,9 @@
       "kategorie": "DAX",
       "gruppe": "Einzelaktien",
       "datei": "alv_de.bin",
-      "anzahl": 7612,
+      "anzahl": 7616,
       "ersterTag": "1996-12-16",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -43,9 +43,9 @@
       "kategorie": "DAX",
       "gruppe": "Einzelaktien",
       "datei": "bmw_de.bin",
-      "anzahl": 7638,
+      "anzahl": 7642,
       "ersterTag": "1996-11-08",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -54,9 +54,9 @@
       "kategorie": "DAX",
       "gruppe": "Einzelaktien",
       "datei": "vow3_de.bin",
-      "anzahl": 7195,
+      "anzahl": 7199,
       "ersterTag": "1998-07-22",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -65,9 +65,9 @@
       "kategorie": "DAX",
       "gruppe": "Einzelaktien",
       "datei": "dte_de.bin",
-      "anzahl": 7632,
+      "anzahl": 7636,
       "ersterTag": "1996-11-18",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -76,9 +76,9 @@
       "kategorie": "DAX",
       "gruppe": "Einzelaktien",
       "datei": "mbg_de.bin",
-      "anzahl": 7645,
+      "anzahl": 7649,
       "ersterTag": "1996-10-30",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -87,9 +87,9 @@
       "kategorie": "DAX",
       "gruppe": "Einzelaktien",
       "datei": "bas_de.bin",
-      "anzahl": 7612,
+      "anzahl": 7616,
       "ersterTag": "1996-12-16",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -98,9 +98,9 @@
       "kategorie": "DAX",
       "gruppe": "Einzelaktien",
       "datei": "ads_de.bin",
-      "anzahl": 7215,
+      "anzahl": 7219,
       "ersterTag": "1998-06-24",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -109,9 +109,9 @@
       "kategorie": "US-Tech",
       "gruppe": "Einzelaktien",
       "datei": "aapl.bin",
-      "anzahl": 7972,
+      "anzahl": 7976,
       "ersterTag": "1995-01-03",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -120,9 +120,9 @@
       "kategorie": "US-Tech",
       "gruppe": "Einzelaktien",
       "datei": "msft.bin",
-      "anzahl": 7972,
+      "anzahl": 7976,
       "ersterTag": "1995-01-03",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -131,9 +131,9 @@
       "kategorie": "US-Tech",
       "gruppe": "Einzelaktien",
       "datei": "googl.bin",
-      "anzahl": 5547,
+      "anzahl": 5551,
       "ersterTag": "2004-08-19",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -142,9 +142,9 @@
       "kategorie": "US-Tech",
       "gruppe": "Einzelaktien",
       "datei": "amzn.bin",
-      "anzahl": 7373,
+      "anzahl": 7377,
       "ersterTag": "1997-05-15",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -153,9 +153,9 @@
       "kategorie": "US-Tech",
       "gruppe": "Einzelaktien",
       "datei": "nvda.bin",
-      "anzahl": 6948,
+      "anzahl": 6952,
       "ersterTag": "1999-01-22",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -164,9 +164,9 @@
       "kategorie": "US-Tech",
       "gruppe": "Einzelaktien",
       "datei": "meta.bin",
-      "anzahl": 3595,
+      "anzahl": 3599,
       "ersterTag": "2012-05-18",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -175,9 +175,9 @@
       "kategorie": "US-Tech",
       "gruppe": "Einzelaktien",
       "datei": "nflx.bin",
-      "anzahl": 6111,
+      "anzahl": 6115,
       "ersterTag": "2002-05-23",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -186,9 +186,9 @@
       "kategorie": "US-Sonstige",
       "gruppe": "Einzelaktien",
       "datei": "tsla.bin",
-      "anzahl": 4072,
+      "anzahl": 4076,
       "ersterTag": "2010-06-29",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -197,9 +197,9 @@
       "kategorie": "US-Sonstige",
       "gruppe": "Einzelaktien",
       "datei": "jnj.bin",
-      "anzahl": 7972,
+      "anzahl": 7976,
       "ersterTag": "1995-01-03",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -208,9 +208,9 @@
       "kategorie": "US-Sonstige",
       "gruppe": "Einzelaktien",
       "datei": "jpm.bin",
-      "anzahl": 7972,
+      "anzahl": 7976,
       "ersterTag": "1995-01-03",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -219,9 +219,9 @@
       "kategorie": "US-Sonstige",
       "gruppe": "Einzelaktien",
       "datei": "ko.bin",
-      "anzahl": 7972,
+      "anzahl": 7976,
       "ersterTag": "1995-01-03",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -230,9 +230,9 @@
       "kategorie": "US-Sonstige",
       "gruppe": "Einzelaktien",
       "datei": "dis.bin",
-      "anzahl": 7972,
+      "anzahl": 7976,
       "ersterTag": "1995-01-03",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -241,9 +241,9 @@
       "kategorie": "US-Sonstige",
       "gruppe": "Einzelaktien",
       "datei": "xom.bin",
-      "anzahl": 7972,
+      "anzahl": 7976,
       "ersterTag": "1995-01-03",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -252,9 +252,9 @@
       "kategorie": "US-Sonstige",
       "gruppe": "Einzelaktien",
       "datei": "wmt.bin",
-      "anzahl": 7972,
+      "anzahl": 7976,
       "ersterTag": "1995-01-03",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -263,9 +263,9 @@
       "kategorie": "Welt-ETF",
       "gruppe": "Welt-ETF",
       "datei": "vt.bin",
-      "anzahl": 4577,
+      "anzahl": 4581,
       "ersterTag": "2008-06-26",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -274,9 +274,9 @@
       "kategorie": "Welt-ETF",
       "gruppe": "Welt-ETF",
       "datei": "acwi.bin",
-      "anzahl": 4640,
+      "anzahl": 4644,
       "ersterTag": "2008-03-28",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -285,9 +285,9 @@
       "kategorie": "Welt-ETF",
       "gruppe": "Welt-ETF",
       "datei": "urth.bin",
-      "anzahl": 3683,
+      "anzahl": 3687,
       "ersterTag": "2012-01-12",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -296,9 +296,9 @@
       "kategorie": "Welt-ETF",
       "gruppe": "Welt-ETF",
       "datei": "veu.bin",
-      "anzahl": 4906,
+      "anzahl": 4910,
       "ersterTag": "2007-03-08",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -307,9 +307,9 @@
       "kategorie": "Welt-ETF",
       "gruppe": "Welt-ETF",
       "datei": "vxus.bin",
-      "anzahl": 3924,
+      "anzahl": 3928,
       "ersterTag": "2011-01-28",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -318,9 +318,9 @@
       "kategorie": "Länder-ETF",
       "gruppe": "Themen-Länder-ETF",
       "datei": "ewj.bin",
-      "anzahl": 7667,
+      "anzahl": 7671,
       "ersterTag": "1996-03-18",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -329,9 +329,9 @@
       "kategorie": "Länder-ETF",
       "gruppe": "Themen-Länder-ETF",
       "datei": "ewz.bin",
-      "anzahl": 6575,
+      "anzahl": 6579,
       "ersterTag": "2000-07-14",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -340,9 +340,9 @@
       "kategorie": "Länder-ETF",
       "gruppe": "Themen-Länder-ETF",
       "datei": "inda.bin",
-      "anzahl": 3668,
+      "anzahl": 3672,
       "ersterTag": "2012-02-03",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -351,9 +351,9 @@
       "kategorie": "Länder-ETF",
       "gruppe": "Themen-Länder-ETF",
       "datei": "mchi.bin",
-      "anzahl": 3881,
+      "anzahl": 3885,
       "ersterTag": "2011-03-31",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -362,9 +362,9 @@
       "kategorie": "Länder-ETF",
       "gruppe": "Themen-Länder-ETF",
       "datei": "ewg.bin",
-      "anzahl": 7667,
+      "anzahl": 7671,
       "ersterTag": "1996-03-18",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -373,9 +373,9 @@
       "kategorie": "Länder-ETF",
       "gruppe": "Themen-Länder-ETF",
       "datei": "ewu.bin",
-      "anzahl": 7667,
+      "anzahl": 7671,
       "ersterTag": "1996-03-18",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -384,9 +384,9 @@
       "kategorie": "Länder-ETF",
       "gruppe": "Themen-Länder-ETF",
       "datei": "ewc.bin",
-      "anzahl": 7667,
+      "anzahl": 7671,
       "ersterTag": "1996-03-18",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -395,9 +395,9 @@
       "kategorie": "Länder-ETF",
       "gruppe": "Themen-Länder-ETF",
       "datei": "ewa.bin",
-      "anzahl": 7667,
+      "anzahl": 7671,
       "ersterTag": "1996-03-18",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -406,9 +406,9 @@
       "kategorie": "Themen-ETF",
       "gruppe": "Themen-Länder-ETF",
       "datei": "xlk.bin",
-      "anzahl": 6968,
+      "anzahl": 6972,
       "ersterTag": "1998-12-22",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -417,9 +417,9 @@
       "kategorie": "Themen-ETF",
       "gruppe": "Themen-Länder-ETF",
       "datei": "xle.bin",
-      "anzahl": 6968,
+      "anzahl": 6972,
       "ersterTag": "1998-12-22",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -428,9 +428,9 @@
       "kategorie": "Themen-ETF",
       "gruppe": "Themen-Länder-ETF",
       "datei": "xlv.bin",
-      "anzahl": 6968,
+      "anzahl": 6972,
       "ersterTag": "1998-12-22",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -439,9 +439,9 @@
       "kategorie": "Themen-ETF",
       "gruppe": "Themen-Länder-ETF",
       "datei": "xlf.bin",
-      "anzahl": 6968,
+      "anzahl": 6972,
       "ersterTag": "1998-12-22",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -450,9 +450,9 @@
       "kategorie": "Themen-ETF",
       "gruppe": "Themen-Länder-ETF",
       "datei": "icln.bin",
-      "anzahl": 4578,
+      "anzahl": 4582,
       "ersterTag": "2008-06-25",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -461,9 +461,9 @@
       "kategorie": "Index",
       "gruppe": "Index-Rohstoff",
       "datei": "gdaxi.bin",
-      "anzahl": 8029,
+      "anzahl": 8034,
       "ersterTag": "1995-01-02",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -472,9 +472,9 @@
       "kategorie": "Index",
       "gruppe": "Index-Rohstoff",
       "datei": "gspc.bin",
-      "anzahl": 7972,
-      "ersterTag": "1995-01-03",
-      "letzterTag": "2026-09-04",
+      "anzahl": 24791,
+      "ersterTag": "1927-12-30",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -483,9 +483,9 @@
       "kategorie": "Index",
       "gruppe": "Index-Rohstoff",
       "datei": "dji.bin",
-      "anzahl": 7972,
+      "anzahl": 7976,
       "ersterTag": "1995-01-03",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -494,9 +494,31 @@
       "kategorie": "Index",
       "gruppe": "Index-Rohstoff",
       "datei": "ndx.bin",
-      "anzahl": 7972,
+      "anzahl": 7976,
       "ersterTag": "1995-01-03",
-      "letzterTag": "2026-09-04",
+      "letzterTag": "2026-09-11",
+      "quelle": "bundled"
+    },
+    {
+      "ticker": "^IXIC",
+      "name": "Nasdaq Composite",
+      "kategorie": "Index",
+      "gruppe": "Index-Rohstoff",
+      "datei": "ixic.bin",
+      "anzahl": 14017,
+      "ersterTag": "1971-02-05",
+      "letzterTag": "2026-09-11",
+      "quelle": "bundled"
+    },
+    {
+      "ticker": "^N225",
+      "name": "Nikkei 225",
+      "kategorie": "Index",
+      "gruppe": "Index-Rohstoff",
+      "datei": "n225.bin",
+      "anzahl": 11483,
+      "ersterTag": "1980-01-04",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -505,9 +527,9 @@
       "kategorie": "Rohstoff",
       "gruppe": "Index-Rohstoff",
       "datei": "gc_f.bin",
-      "anzahl": 6529,
+      "anzahl": 6532,
       "ersterTag": "2000-08-30",
-      "letzterTag": "2026-09-07",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -516,9 +538,9 @@
       "kategorie": "Rohstoff",
       "gruppe": "Index-Rohstoff",
       "datei": "si_f.bin",
-      "anzahl": 6531,
+      "anzahl": 6534,
       "ersterTag": "2000-08-30",
-      "letzterTag": "2026-09-07",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     },
     {
@@ -527,9 +549,9 @@
       "kategorie": "Rohstoff",
       "gruppe": "Index-Rohstoff",
       "datei": "cl_f.bin",
-      "anzahl": 6537,
+      "anzahl": 6540,
       "ersterTag": "2000-08-23",
-      "letzterTag": "2026-09-07",
+      "letzterTag": "2026-09-11",
       "quelle": "bundled"
     }
   ]

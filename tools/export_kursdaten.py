@@ -39,6 +39,35 @@ import yfinance as yf
 # "mind. 10 Jahre zurück" jederzeit erfüllbar ist.
 START_DATUM = "1995-01-01"
 
+# Reihen, die bewusst weiter zurückreichen als START_DATUM.
+#
+# Für Einzelaktien und ETFs bringt mehr Historie nichts – die Produkte gab es
+# schlicht noch nicht. Die großen Indizes dagegen sind durchgerechnet bis weit
+# vor die Nachkriegszeit verfügbar und öffnen damit Epochen, die man sonst nur
+# aus Erzählungen kennt: Weltwirtschaftskrise, Ölkrise, japanische Blase.
+#
+# Wichtig: Das sind Preisindizes ohne Dividenden – wie die vier bereits
+# enthaltenen Indexreihen auch. Die Gesamtrendite lag historisch mehrere
+# Prozentpunkte pro Jahr darüber.
+# Die Startdaten sind gemessen, nicht geschätzt: Anteil der Tage ohne jede
+# Kursänderung je Jahrzehnt, plus Länge der eingefrorenen Strecken.
+HISTORIE_AB = {
+    # Verfügbar ab 1927-12-30, durchgehend brauchbar: keine einzige
+    # eingefrorene Strecke >= 4 Tage über die gesamte Historie.
+    "^GSPC": "1900-01-01",
+
+    # Ab 1971-02-05, 0,27 % unveränderte Tage, keine Strecken.
+    "^IXIC": "1900-01-01",
+
+    # Yahoo liefert zwar ab 1965, die Jahre davor sind aber unbrauchbar:
+    # 1960er 6,9 % / 1970er 4,2 % unveränderte Tage, darunter 21 Handelstage
+    # am Stück eingefroren auf 3187,62 (April 1972) mit anschließendem
+    # Nachholsprung von +5,2 %. Für die Simulation wäre das eine risikolose
+    # Phase, die es nie gab. Ab 1980: 0,06 %, keine Strecken – und die
+    # japanische Blase samt Hoch im Dezember 1989 ist vollständig enthalten.
+    "^N225": "1980-01-01",
+}
+
 # Auffällige Tagesbewegung -> nur Hinweis, kein Abbruch.
 # Echte Kursstürze (z. B. Apple -52 % am 29.09.2000) sind legitim.
 AUFFAELLIG = 0.35
@@ -50,6 +79,12 @@ MIN_TAGE = 250
 # Feiertagsbrücken hinaus deutet so etwas auf Delisting oder eine
 # Handelsaussetzung hin -> die Reihe hat dann eine Lücke, die die Simulation
 # stillschweigend als einen einzigen langen "Handelstag" behandeln würde.
+#
+# Zwei Treffer sind geprüft und echt, kein Datenfehler:
+#   ^GSPC bis 1933-03-15 – das Bank Holiday, mit dem Roosevelt im März 1933
+#                          sämtliche Banken und die Börse schloss.
+#   ^N225 bis 2019-05-07 – die zehntägige Golden Week zum Thronwechsel
+#                          (Ausrufung der Reiwa-Ära).
 MAX_LUECKE_TAGE = 10
 
 # So viele identische Folgekurse gelten als eingefrorene Reihe.
@@ -126,6 +161,8 @@ AKTIEN_POOL = [
     ("^GSPC",   "S&P 500",                      "Index", GRUPPE_INDEX_ROHSTOFF),
     ("^DJI",    "Dow Jones Industrial Average", "Index", GRUPPE_INDEX_ROHSTOFF),
     ("^NDX",    "Nasdaq 100",                   "Index", GRUPPE_INDEX_ROHSTOFF),
+    ("^IXIC",   "Nasdaq Composite",             "Index", GRUPPE_INDEX_ROHSTOFF),
+    ("^N225",   "Nikkei 225",                   "Index", GRUPPE_INDEX_ROHSTOFF),
     ("GC=F",    "Gold",                         "Rohstoff", GRUPPE_INDEX_ROHSTOFF),
     ("SI=F",    "Silber",                       "Rohstoff", GRUPPE_INDEX_ROHSTOFF),
     ("CL=F",    "Rohöl WTI",                    "Rohstoff", GRUPPE_INDEX_ROHSTOFF),
@@ -144,7 +181,8 @@ def epochtag(d):
 
 def lade_kurse(ticker):
     """Liefert eine sortierte Liste (datum, kurs) ohne Lücken und Ausreißer."""
-    df = yf.download(ticker, start=START_DATUM, progress=False, auto_adjust=True)
+    df = yf.download(ticker, start=HISTORIE_AB.get(ticker, START_DATUM),
+                     progress=False, auto_adjust=True)
     if df is None or df.empty:
         return []
 
@@ -226,7 +264,7 @@ def baue_bin(werte):
     """
     Binärformat (little-endian):
       'BRK1'                      4 B  Magic
-      uint32 basisEpochTag             Epochtag des ersten Kurses
+      int32  basisEpochTag             Epochtag des ersten Kurses (ggf. negativ)
       uint32 anzahl
       uint16[anzahl] tagOffset         Tage seit Basistag, streng aufsteigend
       (Padding auf 4-Byte-Grenze)
@@ -247,7 +285,10 @@ def baue_bin(werte):
     if any(offsets[i] <= offsets[i - 1] for i in range(1, anzahl)):
         raise ValueError("Epochtage nicht streng aufsteigend")
 
-    kopf = b"BRK1" + struct.pack("<II", basis, anzahl)
+    # "<i" statt "<I" für den Basistag: Reihen vor 1970 haben einen negativen
+    # Epochtag (S&P 500 ab 1927-12-30 = -15343). Mit "<I" wirft struct hier
+    # einen Fehler – laut, aber eben auch: unmöglich zu exportieren.
+    kopf = b"BRK1" + struct.pack("<iI", basis, anzahl)
     off_bytes = struct.pack(f"<{anzahl}H", *offsets)
     padding = b"\x00" * ((4 - len(off_bytes) % 4) % 4)
     kurs_bytes = struct.pack(f"<{anzahl}f", *[k for _, k in werte])

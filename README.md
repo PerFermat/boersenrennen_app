@@ -297,8 +297,8 @@ sortiert.
 ## Technik
 
 - **Flutter 3.47** / Dart 3.13, Rendering mit `CustomPainter` (kein Game-Engine-Overhead).
-- **Vollständig offline**: 48 Titel (Einzelaktien, Welt-ETFs, Themen-/Länder-ETFs,
-  Indizes, Rohstoffe) liegen als kompakte Binärdateien im App-Paket (~1,9 MB
+- **Vollständig offline**: 50 Titel (Einzelaktien, Welt-ETFs, Themen-/Länder-ETFs,
+  Indizes, Rohstoffe) liegen als kompakte Binärdateien im App-Paket (~2,1 MB
   gesamt). Kein Server, kein Internet.
 - **Lokale Bestenliste** in `shared_preferences`, max. 100 Einträge (score-sortiert
   abgeschnitten); daneben ein **Spielprotokoll** für das Verhaltensprofil, max. 200
@@ -366,10 +366,46 @@ plus ein gemeinsames `index.json`. Der `AKTIEN_POOL` in
 Ticker auch eine **Gruppe** ein (`Einzelaktien` / `Welt-ETF` / `Themen-Länder-ETF` /
 `Index-Rohstoff`) – darüber filtert das Startmenü.
 
-**Binärformat** (little-endian): Magic `BRK1`, `uint32` Basis-Epochtag,
+### Historische Indexreihen vor 1995
+
+Drei Indizes reichen bewusst weiter zurück als `START_DATUM`; die Ausnahmen stehen
+in `HISTORIE_AB`:
+
+| Reihe | ab | öffnet |
+|---|---|---|
+| S&P 500 (`^GSPC`) | 1927-12-30 | Weltwirtschaftskrise, Schwarzer Donnerstag |
+| Nasdaq Composite (`^IXIC`) | 1971-02-05 | Ölkrise, Dotcom-Blase von Anfang an |
+| Nikkei 225 (`^N225`) | 1980-01-01 | japanische Blase samt Hoch 12/1989 |
+
+Die Startdaten sind **gemessen, nicht geschätzt**: Maßstab ist der Anteil der Tage
+ohne jede Kursänderung. Yahoo liefert den Nikkei zwar ab 1965, die 1960er (6,9 %)
+und 1970er (4,2 %) sind aber unbrauchbar – darunter 21 Handelstage am Stück
+eingefroren auf 3187,62 im April 1972 mit anschließendem Nachholsprung von +5,2 %.
+Für die Simulation wäre das eine risikolose Phase, die es nie gab. Ab 1980 liegt der
+Wert bei 0,06 % ohne eine einzige Strecke ≥ 4 Tage. Der S&P 500 hat über die
+gesamte Historie keine solche Strecke und bleibt deshalb ungekürzt.
+
+Zwei Handelspausen lösen einen Hinweis aus und sind **echt**: das Bank Holiday
+vom März 1933 (`^GSPC`) und die zehntägige Golden Week zum Thronwechsel 2019
+(`^N225`).
+
+Zwei Grenzen dieser Reihen: Es sind **Preisindizes ohne Dividenden** (wie die
+bereits enthaltenen Indexreihen auch), und die Kaufkraftrechnung schaltet sich für
+so alte Runden über `kaufkraftIstBelastbar` selbst ab – die Destatis-Tabelle
+beginnt 1994. Die Abgeltungsteuer-Logik bildet durchgehend heutiges Recht ab; auf
+eine Runde in den 1930ern angewandt ist sie ein bewusster Anachronismus.
+
+**Binärformat** (little-endian): Magic `BRK1`, `int32` Basis-Epochtag,
 `uint32` Anzahl, dann `uint16[]` Tages-Offsets und `float32[]` Schlusskurse.
 Absolute Offsets statt Deltas – dadurch bleibt die Suche nach dem Startdatum eine
 Binärsuche in O(log n). 6 Byte pro Kurs statt ~23 Byte als JSON.
+
+Der Basis-Epochtag ist **vorzeichenbehaftet**, weil der S&P 500 vor dem
+1970-01-01 beginnt (`-15343`). Die `uint16`-Offsets reichen für 65535 Tage ab
+Basis, also 179 Jahre – die längste Reihe belegt davon 36050. Nur der Exporter
+war auf positive Basistage festgelegt (`struct.pack("<I", …)` wirft bei negativen
+Werten); der Codec kam durch die 32-Bit-Truncation des `Int32List` schon vorher
+zum richtigen Ergebnis und liest jetzt zusätzlich explizit `getInt32`.
 
 Die Tages-Offsets müssen **streng aufsteigend** sein – darauf beruht die
 Binärsuche. `KursdatenCodec` prüft das beim Laden und lehnt eine Datei sonst mit
@@ -395,10 +431,11 @@ trotzdem mit Exit-Code 0.
 
 ```bash
 flutter pub get
-flutter test        # 182 Tests: Simulation, Kamera, Kulisse, Codec, Rundenwahl, Scores,
+flutter test        # 190 Tests: Simulation, Kamera, Kulisse, Codec, Rundenwahl, Scores,
                     # Rundenauswertung, Monte-Carlo, Trade-Log, Abgeltungsteuer,
                     # Inflation, Würfel-Investor, Bestenliste, kontrafaktische
-                    # Vergleiche, Behavior Gap, Verhaltensprofil, Erfolge
+                    # Vergleiche, Behavior Gap, Verhaltensprofil, Erfolge,
+                    # historische Reihen vor 1970 (gegen das echte Asset)
 flutter analyze
 flutter run         # Emulator oder angestecktes Gerät
 flutter build apk --release --split-per-abi
