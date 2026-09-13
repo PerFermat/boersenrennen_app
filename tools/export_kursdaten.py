@@ -180,6 +180,105 @@ AKTIEN_POOL = [
 ]
 
 
+# ---------------------------------------------------------------------------
+#  Gespleißte Reihen: ETF + Vorgängerfonds derselben Anlageidee
+# ---------------------------------------------------------------------------
+#
+# Ein ETF lässt sich nicht in eine Zeit zurückrechnen, in der es ihn nicht gab.
+# Der übliche Ausweg – den Index zurückrechnen – hat hier einen Haken: Die
+# frei verfügbaren Indexreihen sind Kursindizes ohne Dividenden, die App rechnet
+# aber durchgängig mit Gesamtrendite. Man müsste also eine Dividendenrendite
+# annehmen und hätte ein Modell statt einer Messung.
+#
+# Deshalb der andere Weg: Viele ETFs haben einen **Publikumsfonds** derselben
+# Anlageidee, der Jahrzehnte älter ist. yfinance liefert dessen NAV-Reihe mit
+# auto_adjust als echte Gesamtrendite nach Kosten – ohne jede Annahme.
+#
+# Die ältere Reihe wird multiplikativ auf den Starttag der jüngeren umbasiert
+# (alt * neu[t0] / alt[t0]). Da beide Gesamtrendite sind, ist das reine
+# Umbasierung und kein Modell.
+#
+# WICHTIG: Das Ergebnis ist eine **synthetische** Reihe. Vor dem Spleißpunkt
+# zeigt sie den Vorgängerfonds, nicht den ETF. Deshalb tragen die Einträge
+# "spleissAb" und "quellen" im index.json, und die App weist das aus.
+MIN_UEBERLAPP_TAGE = 250
+MIN_KORRELATION = 0.90
+
+# (Ticker, Vorgänger, Vorgänger-Start, Name, Kategorie, Dateiname-Kürzel)
+#
+# Der Vorgänger-Start ist wie bei HISTORIE_AB gemessen, nicht geschätzt. Die
+# Fidelity-Fonds gibt es zwar ab 1981, ihre NAV-Reihen sind in den ersten
+# Jahren aber eingefroren: 15,5 % (FSPTX), 42,7 % (FSENX) und 38,0 % (FIDSX)
+# unveränderte Tage in den 1980ern, mit Strecken bis zu 34 Tagen am Stück. Nach
+# den unten gesetzten Startdaten bleibt keine Strecke >= 5 Tage übrig.
+#
+# Bewusst **nicht** dabei: XLV <- FSPHX. Korrelation der Tagesrenditen im
+# Überlapp nur 0,809 – der aktiv gemanagte Fidelity-Fonds hielt offenbar etwas
+# deutlich anderes als der Health-Care-Sektorindex. Der Wächter unten fängt das
+# ohnehin ab; hier steht es, damit niemand den Eintrag "versehentlich vergessen"
+# wieder ergänzt.
+SPLEISS_POOL = [
+    ("VXUS", "VGTSX", "1996-01-01", "Welt ohne USA (ab 1996)",      "Welt-ETF",   "vxus_lang"),
+    ("XLK",  "FSPTX", "1983-01-01", "Technologie-Sektor (ab 1983)", "Themen-ETF", "xlk_lang"),
+    ("XLE",  "FSENX", "1985-01-01", "Energie-Sektor (ab 1985)",     "Themen-ETF", "xle_lang"),
+    ("XLF",  "FIDSX", "1985-01-01", "Finanz-Sektor (ab 1985)",      "Themen-ETF", "xlf_lang"),
+]
+
+
+def _korrelation(xs, ys):
+    """Pearson-Korrelation, ohne numpy – der Export soll leichtgewichtig bleiben."""
+    n = len(xs)
+    if n < 2:
+        return 0.0
+    mx, my = sum(xs) / n, sum(ys) / n
+    sxy = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
+    sxx = sum((x - mx) ** 2 for x in xs)
+    syy = sum((y - my) ** 2 for y in ys)
+    if sxx <= 0 or syy <= 0:
+        return 0.0
+    return sxy / math.sqrt(sxx * syy)
+
+
+def spleisse(neu, alt):
+    """
+    Hängt [alt] vor [neu] und basiert es auf den Starttag von [neu] um.
+
+    Liefert (werte, spleiss_ab, korrelation, trackdiff_pp). Wirft ValueError,
+    wenn Überlappung oder Korrelation nicht reichen – lieber gar keine Reihe
+    als eine, die zwei verschiedene Anlagen aneinanderklebt.
+    """
+    neu_map, alt_map = dict(neu), dict(alt)
+    gemeinsam = sorted(set(neu_map) & set(alt_map))
+    if len(gemeinsam) < MIN_UEBERLAPP_TAGE:
+        raise ValueError(
+            f"Überlappung zu kurz: {len(gemeinsam)} < {MIN_UEBERLAPP_TAGE} Tage"
+        )
+
+    # Tagesrenditen auf den gemeinsamen Tagen -> halten die beiden Reihen
+    # überhaupt dasselbe?
+    rn = [neu_map[gemeinsam[i]] / neu_map[gemeinsam[i - 1]] - 1
+          for i in range(1, len(gemeinsam))]
+    ra = [alt_map[gemeinsam[i]] / alt_map[gemeinsam[i - 1]] - 1
+          for i in range(1, len(gemeinsam))]
+    korr = _korrelation(rn, ra)
+    if korr < MIN_KORRELATION:
+        raise ValueError(f"Renditekorrelation nur {korr:.3f} < {MIN_KORRELATION}")
+
+    # Umbasierung am ersten gemeinsamen Tag.
+    t0 = gemeinsam[0]
+    faktor = neu_map[t0] / alt_map[t0]
+
+    jahre = (gemeinsam[-1] - t0).days / 365.25
+    cn = (neu_map[gemeinsam[-1]] / neu_map[t0]) ** (1 / jahre) - 1
+    ca = (alt_map[gemeinsam[-1]] / alt_map[t0]) ** (1 / jahre) - 1
+
+    werte = [(d, k * faktor) for d, k in alt if d < t0] + [
+        (d, k) for d, k in neu if d >= t0
+    ]
+    werte.sort(key=lambda p: p[0])
+    return werte, t0, korr, (cn - ca) * 100
+
+
 def slug(ticker):
     """^GDAXI -> gdaxi, GC=F -> gc_f, VOW3.DE -> vow3_de"""
     s = re.sub(r"[^a-z0-9]+", "_", ticker.lower())
@@ -190,9 +289,15 @@ def epochtag(d):
     return (d - EPOCHE).days
 
 
-def lade_kurse(ticker):
-    """Liefert eine sortierte Liste (datum, kurs) ohne Lücken und Ausreißer."""
-    df = yf.download(ticker, start=HISTORIE_AB.get(ticker, START_DATUM),
+def lade_kurse(ticker, ab=None):
+    """
+    Liefert eine sortierte Liste (datum, kurs) ohne Lücken und Ausreißer.
+
+    [ab] überschreibt das Startdatum. Vorgängerfonds aus dem SPLEISS_POOL
+    brauchen ihre **volle** Historie – ohne das lieferte der Spleiß eine Reihe
+    ab 1995 statt ab 1981, also genau keine Verlängerung.
+    """
+    df = yf.download(ticker, start=ab or HISTORIE_AB.get(ticker, START_DATUM),
                      progress=False, auto_adjust=True)
     if df is None or df.empty:
         return []
@@ -335,34 +440,28 @@ def main():
     auffaellig_gesamt = 0
     qualitaet_gesamt = 0
 
-    for ticker, name, kategorie, gruppe in AKTIEN_POOL:
-        print(f"-> {ticker} ({name}) ...", flush=True)
-        try:
-            werte = lade_kurse(ticker)
-        except Exception as err:
-            print(f"   FEHLER beim Laden: {err}")
-            continue
+    def verarbeite(ticker, name, kategorie, gruppe, werte, datei, zusatz=None):
+        """Prüfen, kodieren, für den späteren Schreibvorgang vormerken."""
+        nonlocal auffaellig_gesamt, qualitaet_gesamt
 
         if len(werte) < MIN_TAGE:
             print(f"   Nur {len(werte)} Kurse – übersprungen.")
-            continue
-
+            return
         spanne_jahre = (werte[-1][0] - werte[0][0]).days / 365.25
         if spanne_jahre < 10:
             print(f"   Nur {spanne_jahre:.1f} Jahre Historie – übersprungen.")
-            continue
+            return
 
         auffaellig_gesamt += pruefe_auffaellige(ticker, werte)
         qualitaet_gesamt += pruefe_reihenqualitaet(ticker, werte)
 
-        datei = f"{slug(ticker)}.bin"
         try:
             daten = baue_bin(werte)
         except ValueError as err:
             print(f"   FEHLER beim Kodieren: {err} – übersprungen.")
-            continue
+            return
 
-        fertig.append((datei, daten, {
+        eintrag = {
             "ticker": ticker,
             "name": name,
             "kategorie": kategorie,
@@ -372,17 +471,62 @@ def main():
             "ersterTag": werte[0][0].isoformat(),
             "letzterTag": werte[-1][0].isoformat(),
             "quelle": "bundled",
-        }))
+        }
+        eintrag.update(zusatz or {})
+        fertig.append((datei, daten, eintrag))
         print(f"   {len(werte)} Kurse, {werte[0][0]} – {werte[-1][0]}, "
               f"{len(daten)/1024:.0f} KB")
+
+    for ticker, name, kategorie, gruppe in AKTIEN_POOL:
+        print(f"-> {ticker} ({name}) ...", flush=True)
+        try:
+            werte = lade_kurse(ticker)
+        except Exception as err:
+            print(f"   FEHLER beim Laden: {err}")
+            continue
+        verarbeite(ticker, name, kategorie, gruppe, werte, f"{slug(ticker)}.bin")
+
+    for ticker, vorgaenger, vorgaenger_ab, name, kategorie, kuerzel in SPLEISS_POOL:
+        print(f"-> {ticker} + {vorgaenger} ({name}) ...", flush=True)
+        try:
+            neu = lade_kurse(ticker)
+            alt = lade_kurse(vorgaenger, ab=vorgaenger_ab)
+        except Exception as err:
+            print(f"   FEHLER beim Laden: {err}")
+            continue
+        if not neu or not alt:
+            print("   Eine der beiden Reihen ist leer – übersprungen.")
+            continue
+
+        try:
+            werte, spleiss_ab, korr, trackdiff = spleisse(neu, alt)
+        except ValueError as err:
+            print(f"   SPLEISS ABGELEHNT: {err}")
+            continue
+
+        print(f"   Spleiß ab {spleiss_ab}: Korrelation {korr:.3f}, "
+              f"Trackingdifferenz {trackdiff:+.2f} pp/Jahr")
+        verarbeite(
+            ticker, name, kategorie, GRUPPE_HISTORISCH, werte, f"{kuerzel}.bin",
+            zusatz={
+                "spleissAb": spleiss_ab.isoformat(),
+                "quellen": [vorgaenger, ticker],
+                "spleissKorrelation": round(korr, 4),
+                "spleissTrackdiffPp": round(trackdiff, 3),
+            },
+        )
 
     # Abbruch-Guard: ein yfinance-Ausfall darf den vorhandenen Datenbestand
     # nicht durch ein leeres oder halbes index.json ersetzen. Ohne diese
     # Prüfung endete der Export auch bei 0 geladenen Titeln mit Exit-Code 0.
-    mindestens = int(len(AKTIEN_POOL) * MIN_ERFOLGSQUOTE)
+    #
+    # Gespleißte Reihen zählen mit: Sie können auch durch den Qualitätswächter
+    # abgelehnt werden, und dann ist ein Fehlbestand genauso ernst.
+    mindestens = int((len(AKTIEN_POOL) + len(SPLEISS_POOL)) * MIN_ERFOLGSQUOTE)
     if len(fertig) < mindestens:
         sys.exit(
-            f"\nABBRUCH: nur {len(fertig)} von {len(AKTIEN_POOL)} Titeln geladen "
+            f"\nABBRUCH: nur {len(fertig)} von "
+            f"{len(AKTIEN_POOL) + len(SPLEISS_POOL)} Titeln geladen "
             f"(mindestens {mindestens} nötig). assets/ bleibt unverändert."
         )
 

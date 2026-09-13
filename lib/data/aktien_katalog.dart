@@ -12,6 +12,18 @@ class AktienEintrag {
   /// "bundled" = im App-Paket. Für späteres Nachladen ist "remote" vorgesehen.
   final String quelle;
 
+  /// Tag, ab dem die Reihe den namensgebenden Titel zeigt – `null`, wenn sie
+  /// durchgehend aus einer Quelle stammt.
+  ///
+  /// **Davor** zeigt sie einen Vorgängerfonds derselben Anlageidee, auf diesen
+  /// Tag umbasiert. Das ist eine synthetische Reihe: Den ETF gab es damals
+  /// nicht. Ohne diese Kennzeichnung spielte jemand „Technologie-Sektor 1990"
+  /// auf einem Produkt, das erst 1998 aufgelegt wurde, ohne es zu merken.
+  final DateTime? spleissAb;
+
+  /// Quellenkette von alt nach neu, leer bei ungespleißten Reihen.
+  final List<String> quellen;
+
   const AktienEintrag({
     required this.ticker,
     required this.name,
@@ -22,7 +34,12 @@ class AktienEintrag {
     required this.ersterTag,
     required this.letzterTag,
     required this.quelle,
+    this.spleissAb,
+    this.quellen = const [],
   });
+
+  /// Ob die Reihe vor [spleissAb] aus einer anderen Quelle stammt.
+  bool get istGespleisst => spleissAb != null;
 
   factory AktienEintrag.vonJson(Map<String, dynamic> j) => AktienEintrag(
         ticker: j['ticker'] as String,
@@ -34,6 +51,10 @@ class AktienEintrag {
         ersterTag: DateTime.parse(j['ersterTag'] as String),
         letzterTag: DateTime.parse(j['letzterTag'] as String),
         quelle: (j['quelle'] as String?) ?? 'bundled',
+        spleissAb: j['spleissAb'] == null
+            ? null
+            : DateTime.parse(j['spleissAb'] as String),
+        quellen: (j['quellen'] as List?)?.cast<String>() ?? const [],
       );
 
   /// Verfügbare Historie in Jahren.

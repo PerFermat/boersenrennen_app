@@ -42,10 +42,11 @@ const _gruppenLabel = <String?, String>{
 /// Über "Zufällig" sind die historischen Reihen nur in rund 3–5 % der Runden
 /// dabei; wer sie gezielt wählt, soll wissen, worin sie sich unterscheiden.
 const _gruppenHinweis = <String?, String>{
-  'Historisch': 'S&P 500 ab 1927, Nasdaq ab 1971, Nikkei ab 1980 – '
-      'Weltwirtschaftskrise, Ölkrise, japanische Blase. Kursindizes ohne '
-      'Dividenden; die Kaufkraftrechnung bleibt hier aus (Inflationsdaten erst '
-      'ab 1994), und die Steuerlogik rechnet mit heutigem Recht.',
+  'Historisch': 'Reicht bis 1927 zurück: Weltwirtschaftskrise, Ölkrise, '
+      'japanische Blase. Die Indizes sind Kursindizes ohne Dividenden; die '
+      'Sektor-Reihen zeigen vor Auflage des ETF einen Vorgängerfonds. Die '
+      'Kaufkraftrechnung bleibt in alten Runden aus (Inflationsdaten erst ab '
+      '1994), die Steuerlogik rechnet mit heutigem Recht.',
 };
 
 class _StartScreenState extends State<StartScreen> {

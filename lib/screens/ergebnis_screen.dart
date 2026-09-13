@@ -268,6 +268,13 @@ class _ErgebnisScreenState extends State<ErgebnisScreen> {
                       ' – ${_datum.format(Kursreihe.zuDatum(e.reihe.letzterTag))}',
                       style: const TextStyle(fontSize: 12, color: ArcadeFarben.tinteHell),
                     ),
+                    if (_spleissHinweis(e) case final hinweis?) ...[
+                      const SizedBox(height: 6),
+                      Text(hinweis,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                              fontSize: 11, color: ArcadeFarben.tinteHell)),
+                    ],
                   ],
                 ),
               ),
@@ -674,6 +681,26 @@ class _ErgebnisScreenState extends State<ErgebnisScreen> {
 
   // Beide Seiten in Expanded, sonst läuft ein langer Wert (z. B. "78 % von
   // 1000 Zufallsläufen …") über den Bildschirmrand hinaus statt umzubrechen.
+  /// Hinweis, wenn die **gespielte** Runde in den gespleißten Teil der Reihe
+  /// reicht – sonst `null`.
+  ///
+  /// Bewusst an die Runde gebunden, nicht an den Titel: Wer auf einer
+  /// gespleißten Reihe einen Zeitraum erwischt, der komplett nach dem
+  /// Spleißpunkt liegt, hat den echten ETF gespielt und braucht keinen
+  /// Hinweis. Ein Vermerk an jedem Titel wäre schnell Hintergrundrauschen,
+  /// das man nicht mehr liest.
+  String? _spleissHinweis(RennenEngine e) {
+    final ab = widget.aktie.spleissAb;
+    if (ab == null) return null;
+    if (e.reihe.ersterTag >= Kursreihe.zuEpochTag(ab)) return null;
+
+    final vorgaenger = widget.aktie.quellen.isNotEmpty
+        ? widget.aktie.quellen.first
+        : 'einen Vorgängerfonds';
+    return 'Vor ${_datum.format(ab)} zeigt die Reihe $vorgaenger – den ETF gab '
+        'es damals noch nicht. Auf diesen Tag umbasiert, beides Gesamtrendite.';
+  }
+
   Widget _zeile(String links, String rechts, Color farbe, {bool fett = false}) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Row(

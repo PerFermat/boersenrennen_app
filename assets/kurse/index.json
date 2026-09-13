@@ -553,6 +553,78 @@
       "ersterTag": "2000-08-23",
       "letzterTag": "2026-09-11",
       "quelle": "bundled"
+    },
+    {
+      "ticker": "VXUS",
+      "name": "Welt ohne USA (ab 1996)",
+      "kategorie": "Welt-ETF",
+      "gruppe": "Historisch",
+      "datei": "vxus_lang.bin",
+      "anzahl": 7642,
+      "ersterTag": "1996-04-29",
+      "letzterTag": "2026-09-11",
+      "quelle": "bundled",
+      "spleissAb": "2011-01-28",
+      "quellen": [
+        "VGTSX",
+        "VXUS"
+      ],
+      "spleissKorrelation": 0.9861,
+      "spleissTrackdiffPp": 0.074
+    },
+    {
+      "ticker": "XLK",
+      "name": "Technologie-Sektor (ab 1983)",
+      "kategorie": "Themen-ETF",
+      "gruppe": "Historisch",
+      "datei": "xlk_lang.bin",
+      "anzahl": 11010,
+      "ersterTag": "1983-01-03",
+      "letzterTag": "2026-09-11",
+      "quelle": "bundled",
+      "spleissAb": "1998-12-22",
+      "quellen": [
+        "FSPTX",
+        "XLK"
+      ],
+      "spleissKorrelation": 0.9501,
+      "spleissTrackdiffPp": -2.79
+    },
+    {
+      "ticker": "XLE",
+      "name": "Energie-Sektor (ab 1985)",
+      "kategorie": "Themen-ETF",
+      "gruppe": "Historisch",
+      "datei": "xle_lang.bin",
+      "anzahl": 10504,
+      "ersterTag": "1985-01-02",
+      "letzterTag": "2026-09-11",
+      "quelle": "bundled",
+      "spleissAb": "1998-12-22",
+      "quellen": [
+        "FSENX",
+        "XLE"
+      ],
+      "spleissKorrelation": 0.9698,
+      "spleissTrackdiffPp": -0.557
+    },
+    {
+      "ticker": "XLF",
+      "name": "Finanz-Sektor (ab 1985)",
+      "kategorie": "Themen-ETF",
+      "gruppe": "Historisch",
+      "datei": "xlf_lang.bin",
+      "anzahl": 10504,
+      "ersterTag": "1985-01-02",
+      "letzterTag": "2026-09-11",
+      "quelle": "bundled",
+      "spleissAb": "1998-12-22",
+      "quellen": [
+        "FIDSX",
+        "XLF"
+      ],
+      "spleissKorrelation": 0.9641,
+      "spleissTrackdiffPp": -0.829
     }
   ]
 }

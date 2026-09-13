@@ -190,9 +190,33 @@ void _menueTests() {
   test('jeder Titel der Gruppe „Historisch" beginnt deutlich vor 1995', () {
     final hist = katalog.where((a) => a.gruppe == 'Historisch').toList();
 
-    expect(hist, hasLength(3));
+    expect(hist, hasLength(7));
     for (final a in hist) {
-      expect(a.ersterTag.year, lessThan(1990), reason: a.ticker);
+      expect(a.ersterTag.year, lessThan(1997), reason: a.ticker);
+    }
+  });
+
+  test('gespleißte Reihen tragen Spleißpunkt und Quellenkette', () {
+    final gespleisst = katalog.where((a) => a.istGespleisst).toList();
+
+    expect(gespleisst.map((a) => a.ticker), ['VXUS', 'XLK', 'XLE', 'XLF']);
+    for (final a in gespleisst) {
+      // Der Spleißpunkt muss *innerhalb* der Reihe liegen – läge er davor
+      // oder dahinter, wäre der Hinweis im Ergebnis-Screen entweder immer
+      // oder nie sichtbar, statt genau bei betroffenen Runden.
+      expect(a.spleissAb!.isAfter(a.ersterTag), isTrue, reason: a.ticker);
+      expect(a.spleissAb!.isBefore(a.letzterTag), isTrue, reason: a.ticker);
+
+      // Kette von alt nach neu; der letzte Eintrag ist der Titel selbst.
+      expect(a.quellen, hasLength(2), reason: a.ticker);
+      expect(a.quellen.last, a.ticker);
+    }
+  });
+
+  test('ungespleißte Reihen tragen keinen Spleißpunkt', () {
+    for (final a in katalog.where((a) => !a.istGespleisst)) {
+      expect(a.spleissAb, isNull, reason: a.ticker);
+      expect(a.quellen, isEmpty, reason: a.ticker);
     }
   });
 }

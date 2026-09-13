@@ -297,8 +297,8 @@ sortiert.
 ## Technik
 
 - **Flutter 3.47** / Dart 3.13, Rendering mit `CustomPainter` (kein Game-Engine-Overhead).
-- **Vollständig offline**: 50 Titel (Einzelaktien, Welt-ETFs, Themen-/Länder-ETFs,
-  Indizes, Rohstoffe) liegen als kompakte Binärdateien im App-Paket (~2,1 MB
+- **Vollständig offline**: 54 Titel (Einzelaktien, Welt-ETFs, Themen-/Länder-ETFs,
+  Indizes, Rohstoffe) liegen als kompakte Binärdateien im App-Paket (~2,4 MB
   gesamt). Kein Server, kein Internet.
 - **Lokale Bestenliste** in `shared_preferences`, max. 100 Einträge (score-sortiert
   abgeschnitten); daneben ein **Spielprotokoll** für das Verhaltensprofil, max. 200
@@ -399,6 +399,47 @@ so alte Runden über `kaufkraftIstBelastbar` selbst ab – die Destatis-Tabelle
 beginnt 1994. Die Abgeltungsteuer-Logik bildet durchgehend heutiges Recht ab; auf
 eine Runde in den 1930ern angewandt ist sie ein bewusster Anachronismus.
 
+### Gespleißte ETF-Reihen (`SPLEISS_POOL`)
+
+Ein ETF lässt sich nicht in eine Zeit zurückrechnen, in der es ihn nicht gab. Der
+übliche Ausweg – den zugrunde liegenden Index verlängern – scheitert hier daran,
+dass die frei verfügbaren Indexreihen **Kursindizes ohne Dividenden** sind, die App
+aber durchgängig mit Gesamtrendite rechnet. Man müsste eine Dividendenrendite
+annehmen und hätte ein Modell statt einer Messung.
+
+Deshalb der andere Weg: Viele ETFs haben einen **Publikumsfonds** derselben
+Anlageidee, der Jahrzehnte älter ist. yfinance liefert dessen NAV-Reihe mit
+`auto_adjust` als echte Gesamtrendite nach Kosten. Die ältere Reihe wird
+multiplikativ auf den ersten gemeinsamen Tag umbasiert (`alt × neu[t0] / alt[t0]`) –
+da beide Gesamtrendite sind, ist das reine Umbasierung ohne Annahme.
+
+| Titel | Kette | ab | Korrelation | Trackingdifferenz |
+|---|---|---|---|---|
+| Welt ohne USA | VGTSX → VXUS | 1996 | 0,986 | +0,07 pp |
+| Technologie-Sektor | FSPTX → XLK | 1983 | 0,950 | −2,79 pp |
+| Energie-Sektor | FSENX → XLE | 1985 | 0,970 | −0,56 pp |
+| Finanz-Sektor | FIDSX → XLF | 1985 | 0,964 | −0,83 pp |
+
+Zwei Wächter entscheiden, nicht das Wunschdenken: mindestens
+`MIN_UEBERLAPP_TAGE` (250) gemeinsame Handelstage und eine Korrelation der
+**Tagesrenditen** im Überlapp von mindestens `MIN_KORRELATION` (0,90). Wer das
+reißt, fliegt raus – so geschehen bei **XLV ← FSPHX** mit 0,809: Der aktiv
+gemanagte Fidelity-Fonds hielt etwas deutlich anderes als der Health-Care-Index.
+Ohne diese Prüfung wären dort zwei verschiedene Anlagen aneinandergeklebt worden.
+
+Die Startdaten der Vorgängerfonds sind wie bei `HISTORIE_AB` gemessen: Die
+Fidelity-Fonds gibt es ab 1981, ihre NAV-Reihen sind in den ersten Jahren aber
+eingefroren (15,5 % / 42,7 % / 38,0 % unveränderte Tage in den 1980ern, Strecken
+bis 34 Tage am Stück). Nach den gesetzten Startdaten bleibt keine Strecke
+≥ 5 Tage übrig.
+
+**Das Ergebnis ist synthetisch** und wird als solches ausgewiesen: `index.json`
+trägt `spleissAb`, `quellen`, `spleissKorrelation` und `spleissTrackdiffPp`;
+`AktienEintrag.istGespleisst` macht das in der App verfügbar. Der Ergebnis-Screen
+blendet einen Hinweis ein – aber **nur**, wenn die tatsächlich gespielte Runde in
+den gespleißten Teil reicht. Ein Vermerk an jedem Titel wäre schnell
+Hintergrundrauschen, das niemand mehr liest.
+
 **Binärformat** (little-endian): Magic `BRK1`, `int32` Basis-Epochtag,
 `uint32` Anzahl, dann `uint16[]` Tages-Offsets und `float32[]` Schlusskurse.
 Absolute Offsets statt Deltas – dadurch bleibt die Suche nach dem Startdatum eine
@@ -435,12 +476,15 @@ trotzdem mit Exit-Code 0.
 
 ```bash
 flutter pub get
-flutter test        # 193 Tests: Simulation, Kamera, Kulisse, Codec, Rundenwahl, Scores,
+flutter test        # 195 Tests: Simulation, Kamera, Kulisse, Codec, Rundenwahl, Scores,
                     # Rundenauswertung, Monte-Carlo, Trade-Log, Abgeltungsteuer,
                     # Inflation, Würfel-Investor, Bestenliste, kontrafaktische
                     # Vergleiche, Behavior Gap, Verhaltensprofil, Erfolge,
                     # historische Reihen vor 1970 und die Menü-Auswahl
                     # (beides gegen die echten Assets)
+
+./.venv/bin/python tools/test_spleiss.py   # 7 Tests der Spleiß-Mechanik
+                                           # (synthetische Reihen, kein Netz)
 flutter analyze
 flutter run         # Emulator oder angestecktes Gerät
 flutter build apk --release --split-per-abi
