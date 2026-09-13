@@ -1,7 +1,7 @@
 name: boersenrennen_app
 description: "Börsenrennen – ein Lernspiel, das drei Anlagestrategien als Wettrennen zeigt."
 publish_to: 'none'
-version: 1.0.0+1
+version: 0.1.0+1
 
 environment:
   sdk: ^3.13.2
