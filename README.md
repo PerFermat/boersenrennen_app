@@ -13,7 +13,7 @@ Drei Anlagestrategien treten auf **derselben**, dem Spieler verborgenen Zufallsa
 
 | Vor dem Spiel | Spiel selbst | Auswertung |
 |:---:|:---:|:---:|
-| ![Startbildschirm](docs/screenshots/01_start.png) | ![Rennbahn während einer laufenden Runde](docs/screenshots/02_spiel.png) | ![Auswertung nach Rundenende](docs/screenshots/03_auswertung.png) |
+| <img src="docs/screenshots/01_start.png" width="220"> | <img src="docs/screenshots/02_spiel.png" width="220"> | <img src="docs/screenshots/03_auswertung.png" width="220"> |
 
 Alle starten mit 1000 €, monatlich kommen 100 € dazu. Im Startmenü lässt sich
 wählen, aus welcher Gruppe die Zufallsaktie kommt: **Einzelaktien**, **Welt-ETFs**
